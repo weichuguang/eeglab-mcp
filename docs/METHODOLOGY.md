@@ -2,8 +2,8 @@
 
 EEGLAB-MCP 不只是一组把 MATLAB 函数包起来的工具。它在执行之前先回答一个问题：**这次调用的参数，在这份数据上是否在方法学上成立？** 这个判断由两部分构成：
 
-- **声明的知识**（`src/eeglab_mcp/data/` 下的 JSON）：47 条关于 EEGLAB 行为与方法学要求的声明，以及 39 个具名方法配置。
-- **规则引擎**（`src/eeglab_mcp/gates.py`）：39 个检查函数。它只读 MATLAB 返回的事实（facts），在 Python 侧完成判断，因此可以脱离 MATLAB 单元测试。
+- **声明的知识**（`src/eeglab_mcp/data/` 下的 JSON）：49 条关于 EEGLAB 行为与方法学要求的声明，以及 41 个具名方法配置。
+- **规则引擎**（`src/eeglab_mcp/gates.py`）：41 个检查函数。它只读 MATLAB 返回的事实（facts），在 Python 侧完成判断，因此可以脱离 MATLAB 单元测试。
 
 知识是数据，判断是代码。两者分离，使声明可以被同行评审、被版本化，而不需要改动引擎。
 
@@ -15,7 +15,7 @@ EEGLAB 的设计目标是“把分析做出来”，不是“阻止你做错”�
 
 ## 二、声明（Claims）
 
-`data/claims.json` 共 47 条，按主题分组：FILT 8、REF 5、ICA 8、EPOCH 7、ASR 4、STAT 6、QC 5、GEN 4。每条声明的结构：
+`data/claims.json` 共 49 条，按主题分组：FILT 8、REF 5、ICA 8、EPOCH 7、ASR 4、STAT 6、QC 7、GEN 4。每条声明的结构：
 
 | 字段 | 含义 |
 | --- | --- |
@@ -30,7 +30,7 @@ EEGLAB 的设计目标是“把分析做出来”，不是“阻止你做错”�
 
 ## 三、方法配置（Method profiles）
 
-`data/methods/*.json` 共 39 个配置，覆盖 10 个动作：
+`data/methods/*.json` 共 41 个配置，覆盖 11 个动作：
 
 | 动作 | 配置数 | 示例 |
 | --- | --- | --- |
@@ -40,9 +40,10 @@ EEGLAB 的设计目标是“把分析做出来”，不是“阻止你做错”�
 | epoch | 5 | `M-EPOCH-STIM-01`（−0.2–0.8 s） |
 | baseline | 3 | `M-BASE-PRE-01`（−200–0 ms） |
 | asr | 3 | `M-ASR-CLEAN-01`（cutoff 20，未接入执行层） |
+| psd | 2 | `M-SPEC-PSD-01`（自动上限）、`M-SPEC-PSD-40-01`（0–40 Hz） |
 | qc / stats / export / plot | 3 / 4 / 2 / 2 | `M-STAT-TTEST-01` 等 |
 
-每个配置包含 `params`（该方法的参数）、`claims`（依据）、`gates`（前置检查）、`executable`（本版本能否真正执行）。39 个配置中 29 个可执行；其余 10 个明确标注为“未接入”，调用时会被 `capability_available` 检查阻断，而不是假装能跑。
+每个配置包含 `params`（该方法的参数）、`claims`（依据）、`gates`（前置检查）、`executable`（本版本能否真正执行）。41 个配置中 31 个可执行；其余 10 个明确标注为“未接入”，调用时会被 `capability_available` 检查阻断，而不是假装能跑。
 
 ## 四、配置如何被选中
 
@@ -57,7 +58,7 @@ EEGLAB 的设计目标是“把分析做出来”，不是“阻止你做错”�
 
 ## 五、检查与状态
 
-39 个检查分属以下类别：
+41 个检查分属以下类别：
 
 | 类别 | 检查 |
 | --- | --- |
@@ -67,6 +68,7 @@ EEGLAB 的设计目标是“把分析做出来”，不是“阻止你做错”�
 | 分段与基线 | `event_types_present`、`event_types_not_structural`、`event_cooccurrence`、`event_semantics_user_confirmed`、`epoch_within_record`、`epoch_span`、`baseline_before_stimulus`、`baseline_length`、`baseline_within_epoch`、`baseline_skip_declared` |
 | ASR | `asr_cutoff_range`、`raw_data_preserved`、`plugin_available` |
 | 统计与导图 | `stats_unit_of_analysis`、`stats_window_declared`、`stats_multiple_comparison`、`window_independent_of_result`、`waveform_labeling`、`trials_sufficient` |
+| 频域 | `fmax_below_nyquist`（上限低于 90% 奈奎斯特）、`psd_record_length_sufficient`（时长决定 Δf≈1/T 与平均段数） |
 | 通用 | `data_unit_consistent`、`flat_channel_absent`、`capability_available`、`processing_stage_order`、`qc_limitations_declared`、`export_metadata_complete` |
 
 每个检查返回两种状态之一：通过，或按其配置的 `on_fail` 判为 `advisory` / `blocked`。整次调用的结论取最严重者：
@@ -83,7 +85,7 @@ EEGLAB 的设计目标是“把分析做出来”，不是“阻止你做错”�
 
 ### 安全门控始终附加
 
-`nyquist_lowpass` 与 `nyquist_notch` 不受配置控制：无论调用匹配了哪个配置，只要低通或陷波频率达到奈奎斯特频率就会被阻断。这条规则的存在，是因为曾出现 `filter(lowpass_hz=100)` 在 128 Hz 数据上匹配到“50 Hz 陷波”配置并顺利通过的情况——配置可以漏，安全底线不能漏。
+`nyquist_lowpass` 与 `nyquist_notch` 不受配置控制：无论调用匹配了哪个配置，只要低通或陷波频率达到奈奎斯特频率就会被阻断。这条规则的存在，是因为曾出现 `filter(lowpass_hz=100)` 在 128 Hz 数据上匹配到“50 Hz 陷波”配置并顺利通过的情况——配置可以漏，安全底线不能漏。这两个安全门控只读 `lowpass_hz`/`notch_hz`，不读频谱的 `fmax_hz`；频域调用由 `fmax_below_nyquist` 单独把关。
 
 ## 六、override 的约束
 
@@ -105,7 +107,7 @@ EEGLAB 的设计目标是“把分析做出来”，不是“阻止你做错”�
 
 ## 八、MATLAB 原生测试
 
-方法学层回答“该不该算”，测试回答“算得对不对”。`matlab/tests/` 下的 5 个套件直接调用真实 EEGLAB 函数，共 29 项检查：
+方法学层回答“该不该算”，测试回答“算得对不对”。`matlab/tests/` 下的 6 个套件直接调用真实 EEGLAB 函数，共 36 项检查：
 
 | 套件 | 验证内容 |
 | --- | --- |
@@ -113,7 +115,8 @@ EEGLAB 的设计目标是“把分析做出来”，不是“阻止你做错”�
 | `test_synthetic_erp` | 在已知时刻注入 5 µV、σ=40 ms 的高斯峰，检查试次数、峰潜伏期误差 ≤15 ms、幅值误差、基线为零；并直接验证两条声明（零相位滤波不移动潜伏期、1 Hz 高通削弱慢成分） |
 | `test_unit_detection` | µV / V / 未知单位三种输入的单位判定与换算系数 |
 | `test_plugin_presence` | clean_rawdata、ICLabel、ERPLAB、BIOSIG 的实际可用性（缺失时如实报告，不伪造通过） |
-| `test_sample_dataset` | 在 EEGLAB 官方示例数据上完成读取、分段、ERP、频谱 |
+| `test_sample_dataset` | 在 EEGLAB 官方示例数据上完成读取、分段、ERP、频谱与频段功率 |
+| `test_spectral` | dB→µV² 语义、频段积分（宽带噪声约等于方差）、正弦功率 A²/2、`scale²` 单位换算、`fmax` 裁剪、工频峰判定 |
 
 运行方式：
 
@@ -132,10 +135,11 @@ pytest tests -q                               # Python 侧：知识库完整性�
 
 **加一个检查**：在 `gates.py` 中写一个 `(_Ctx) -> (bool, str)` 函数并注册到 `CHECKS`；`str` 是写给使用者看的观测值（应当包含具体数值），不是日志。
 
-改完运行 `pytest tests/test_gates.py -q`。知识库的一致性检查（47 条声明、39 个配置、所有引用可解析、所有检查已注册）会在毫秒内给出结论。
+改完运行 `pytest tests/test_gates.py -q`。知识库的一致性检查（49 条声明、41 个配置、所有引用可解析、所有检查已注册）会在毫秒内给出结论。
 
 ## 十、边界
 
 - 门控判断的是**调用是否可解释**，不是**结论是否成立**。通过门控的结果仍可能因为实验设计、样本量或统计推断而不成立，这一点写在每次返回的 `interpretation_limits` 中。
 - 声明是释义而非原文，`locator` 提供给读者核对；不同 EEGLAB 版本的行为可能不同，`claims.json` 的 `eeglab_baseline` 记录了编写时使用的版本（13.0.0b）。
 - 当前 10 个配置标注为不可执行（ASR、ICLabel、REST、统计），它们只做前置检查。工具不会把“检查通过”呈现为“功能可用”。
+- **时频不在本服务范围**：`eeglab_compute_psd` 提供全记录平均的 Welch 谱与标准频段功率；ERSP/ITC 等时变功率交给 MNE-MCP（`mne_tfr_morlet`）。这是刻意划定的边界，不是未实现。

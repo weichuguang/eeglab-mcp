@@ -45,6 +45,27 @@ sub-001,square,ch1,19.436320,2
 **已验证**：端到端验证记录的 32 通道 × 80 试次 = 2560 行输出，
 可被 pandas 直接读取（无缺失值、`mean_uv` 为浮点）。
 
+### 频域交接：`psd_channels.csv`
+
+`eeglab_compute_psd` 额外产出逐通道功率谱，供 MNE / pandas / R 直接读取：
+
+```
+channel,freq_hz,power_db,power_uv2_hz
+ch1,0,42.13,163.3
+ch1,0.125,40.87,122.2
+...
+```
+
+| 列 | 含义 | 类型 |
+| --- | --- | --- |
+| `channel` | 通道标签（无定位时为 `chN`） | string |
+| `freq_hz` | 频率（全分辨率，不做 300 点降采样） | float |
+| `power_db` | Welch 功率谱密度，dB 基准 `10*log10(µV²/Hz)` | float |
+| `power_uv2_hz` | 线性化的功率谱密度，单位 µV²/Hz | float |
+
+标准频段功率（delta/theta/alpha/beta/gamma，单位 µV²）直接放在工具返回的
+`result.bands` 中，无需再从 CSV 积分。
+
 ---
 
 ## 三、返回信封的字段对应
@@ -70,7 +91,7 @@ MNE-MCP 提供 `mne_run_code`、Pingouin-MCP 提供 `stat_run_code` 作为逃生
 原因：MATLAB 脚本一旦允许拼接执行，就会绕过路径白名单与参数校验，
 形成任意代码执行面。本服务的替代方案是：
 
-1. 所有能力通过 20 个固定工具暴露；
+1. 所有能力通过 21 个固定工具暴露；
 2. 多步分析通过 `eeglab_run_pipeline` 的**预定义流水线**组合；
 3. 未被封装的需求，通过扩展 `matlab/run_job.m` 中新增 `case` 来满足——
    新增能力需要经过代码审查与测试，而不是运行时拼接。
@@ -93,14 +114,32 @@ MNE-MCP 提供 `mne_run_code`、Pingouin-MCP 提供 `stat_run_code` 作为逃生
    或 eeglab_filter_data → eeglab_epoch_data → eeglab_baseline_correct
 
 ③ 交接（本文件第二节）
-   eeglab_export_long_table(window 0.25–0.45 s)
+   eeglab_export_long_table(window 0.25–0.45 s)   # 幅值 -> 统计
+   eeglab_compute_psd                             # 频域 -> 谱/频段功率
 
-④ 统计推断（Pingouin-MCP）
-   stat_data_quality_check → stat_ttest / stat_anova / stat_corr
+④ 统计推断 / 时频
+   Pingouin-MCP：stat_data_quality_check → stat_ttest / stat_anova / stat_corr
+   MNE-MCP      ：时频（ERSP/ITC）见下节
 
 ⑤ 报告
    三个服务器的 artifacts 合并归档；每个产物均带 SHA-256
 ```
+
+### 时频（ERSP/ITC）用 MNE-MCP
+
+EEGLAB-MCP 刻意不实现时频。已实测可行的编排（MNE 1.12.1）：
+
+```python
+# 分段 .set 不能用 mne_load_raw（它只接受连续数据），需走 mne_run_code
+mne_run_code("epochs = mne.io.read_epochs_eeglab(r'<epoched.set>', verbose='ERROR')")
+mne_run_code("epochs.apply_baseline((None, 0))")
+# 然后调用结构化工具
+mne_tfr_morlet(epochs_name="epochs", fmin=4, fmax=40, n_freqs=20)
+```
+
+注意：MNE 内部以**伏特**保存 EEG 数据，读取 EEGLAB 的 µV 数据时会自动换算
+（实测 38.7 µV → 3.87e-05 V）。不要在 MNE 侧再手工乘/除 1e6，除非你明确知道
+数据在 `.set` 中的存储单位。
 
 **批量场景**：`eeglab_batch_process` 一次调用处理多个被试，单文件失败不中断整批，
 返回 `items[].ok` 与 `items[].error_message`，可据此决定是否将某一被试排除在统计之外——

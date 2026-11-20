@@ -11,7 +11,7 @@ spectral analysis and quality control. Every result comes from an actual MATLAB 
 is no simulation layer — and every call returns structured data, artifacts, parameter records
 and logs that can be checked afterwards.
 
-> 中文简介：本服务把 MCP 智能体接到真实的 MATLAB/EEGLAB 上，提供 20 个受控工具，
+> 中文简介：本服务把 MCP 智能体接到真实的 MATLAB/EEGLAB 上，提供 21 个受控工具，
 > 覆盖数据检查、预处理、ICA、分段、ERP、频谱、质控、批量处理与方法学门控。
 > 所有计算由 MATLAB 执行，结果可复核。设计文档见 [`docs/`](docs/)。
 
@@ -175,7 +175,8 @@ tool names such as `eeglab_get_status` and `eeglab_inspect_dataset`.
 | `eeglab_baseline_correct` | Baseline correction over a specified window. |
 | `eeglab_run_ica` | `runica` or PCA; weights saved. Components are **never** rejected automatically. |
 | `eeglab_compute_erp` | Condition average; exports the full channel × time matrix as CSV. |
-| `eeglab_plot_results` | ERP waveform, scalp topography or PSD as PNG. |
+| `eeglab_compute_psd` | Welch power spectrum, per-channel spectra and delta/theta/alpha/beta/gamma band power (µV²), with line-noise hints. |
+| `eeglab_plot_results` | ERP waveform or scalp topography as PNG (`kind="psd"` is legacy; prefer `eeglab_compute_psd`). |
 | `eeglab_qc_report` | Amplitude statistics, flat/outlier channels, event quality, and the checks **not** performed. |
 
 ### Batch and interoperability
@@ -190,13 +191,17 @@ tool names such as `eeglab_get_status` and `eeglab_inspect_dataset`.
 
 | Tool | Purpose |
 | --- | --- |
-| `eeglab_method_catalog` | List the 39 method profiles with parameters, citations, gates and executability. |
-| `eeglab_official_claims` | Query the 47 curated claims with source locators and risk notes. |
+| `eeglab_method_catalog` | List the 41 method profiles with parameters, citations, gates and executability. |
+| `eeglab_official_claims` | Query the 49 curated claims with source locators and risk notes. |
 | `eeglab_method_preflight` | Dry run: which gates would fire for a file and a parameter set, without computing. |
 
 Preprocessing tools run their methodology gates before any computation. A blocked call
 returns `GATE_BLOCKED` and produces no output. Overriding a block requires a written reason
 (≥ 20 characters) that is stored with the original finding.
+
+Frequency analysis in this server is a time-averaged Welch spectrum (`eeglab_compute_psd`).
+Time-frequency analysis (ERSP/ITC) is deliberately out of scope; use MNE-MCP's
+`mne_tfr_morlet`. See `docs/INTEROP.md`.
 
 ---
 
@@ -234,7 +239,7 @@ returns `GATE_BLOCKED` and produces no output. Overriding a block requires a wri
    source SHA-256.
 5. **Timeouts and logs.** Each job keeps `job.json`, `matlab_result.json` and
    `matlab_stdout.log`.
-6. **Methodology gates.** 47 claims and 39 method profiles are checked before computation.
+6. **Methodology gates.** 49 claims and 41 method profiles are checked before computation.
 7. **Facts from the file.** Gates read real header properties from the `.set` file, not
    caller claims.
 
@@ -249,7 +254,7 @@ python -m pytest tests -q -m "not integration"
 # Integration tests: start a real MATLAB process
 python -m pytest tests -q
 
-# Native MATLAB tests (29 checks): real EEGLAB functions and a known-answer ERP
+# Native MATLAB tests (36 checks): real EEGLAB functions and a known-answer ERP
 python scripts/run_matlab_tests.py
 
 # End-to-end verification and protocol-level check
@@ -296,7 +301,10 @@ EEGLAB 13.0.0b, Python 3.12.10, EEGLAB sample dataset (32 channels, 128 Hz, 30 5
   has not been verified element by element.
 - **Objects do not persist across calls.** The MATLAB process persists; workspace objects do
   not. Intermediate results are chained through artifact files.
-- **No `run_code` escape hatch.** Capability is bounded by the 20 tools, by design.
+- **No `run_code` escape hatch.** Capability is bounded by the 21 tools, by design.
+- **Time-frequency is out of scope.** The server computes a time-averaged Welch spectrum;
+  ERSP/ITC belong to MNE-MCP (`mne_tfr_morlet`). This is a deliberate boundary, not a
+  missing feature.
 - **Unit inference.** V vs µV is inferred from amplitude and reported as
   `input_unit_assumed`; unusual data can be misclassified.
 

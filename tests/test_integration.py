@@ -106,6 +106,44 @@ def test_batch_rejects_unknown_pipeline():
     assert r["errors"][0]["code"] == "BAD_PARAMS"
 
 
+def test_compute_psd_end_to_end():
+    r = T.compute_psd(SAMPLE)
+    assert r["success"] is True, r["errors"]
+    d = r["result"]
+    assert d["channel_count"] == 32
+    assert d["fmax_hz"] == 45
+    assert d["fmin_hz"] == 0
+    assert len(d["freqs_hz"]) == len(d["mean_spectrum_db"]) <= 300
+    assert d["df_hz"] > 0
+    assert d["db_reference"] == "10*log10(uV^2/Hz)"
+    bands = d["bands"]
+    assert bands["name"] == ["delta", "theta", "alpha", "beta", "gamma"]
+    assert all(v > 0 for v in bands["mean_uv2"])
+    kinds = {a["kind"] for a in r["artifacts"]}
+    assert {"psd_csv", "psd_channels_csv", "figure_png"} <= kinds
+    assert r["gate"]["method_id"] == "M-SPEC-PSD-01"
+    csv = [a for a in r["artifacts"] if a["kind"] == "psd_channels_csv"][0]
+    header = open(csv["path"], encoding="utf-8").readline().strip()
+    assert header == "channel,freq_hz,power_db,power_uv2_hz"
+
+
+def test_compute_psd_fmax_above_nyquist_is_blocked_before_matlab():
+    r = T.compute_psd(SAMPLE, fmax_hz=64)
+    assert r["success"] is False
+    assert r["errors"][0]["code"] == "GATE_BLOCKED"
+    assert r["runtime"]["job_dir"] is None
+
+
+def test_plot_psd_kind_is_still_accepted():
+    # Backward compatibility: "psd" remains a recognised plot kind.  The sample
+    # dataset has no channel locations, so the ad-hoc plot gates block it --
+    # what matters is GATE_BLOCKED, not BAD_PARAMS.
+    r = T.plot_results(SAMPLE, kind="psd")
+    assert r["success"] is False
+    assert r["errors"][0]["code"] == "GATE_BLOCKED"
+    assert r["gate"]["method_id"] == "M-ADHOC-PLOT"
+
+
 def test_export_long_table_schema():
     pipe = T.run_pipeline(SAMPLE, "erp_analysis", event_types=["square"])
     assert pipe["success"] is True

@@ -1,0 +1,37 @@
+{
+  "stage": "psd",
+  "action": "psd",
+  "profiles": [
+    {
+      "id": "M-SPEC-PSD-01",
+      "title": "Welch 功率谱与标准频段功率",
+      "intent": "用 EEGLAB spectopo（Welch）估计全记录功率谱，导出逐通道谱与 delta/theta/alpha/beta/gamma 频段功率，并提示工频峰。",
+      "params": {"fmax_hz": null, "fmin_hz": null},
+      "claims": ["EEGLAB-QC-003", "EEGLAB-QC-004", "EEGLAB-QC-006", "EEGLAB-QC-007", "EEGLAB-FILT-005"],
+      "gates": [
+        {"check": "fmax_below_nyquist", "on_fail": "blocked", "claim": "EEGLAB-FILT-003", "message": "频率上限必须低于奈奎斯特频率并留出过渡带", "remedy": "降低 fmax_hz 到采样率的一半以下（建议不超过 90% 奈奎斯特）"},
+        {"check": "psd_record_length_sufficient", "on_fail": "advisory", "claim": "EEGLAB-QC-006", "message": "记录时长决定频率分辨率与平均段数", "remedy": "在报告中写明 Δf≈1/T；低频结论需要更长记录", "args": {"min_s": 10}},
+        {"check": "data_unit_consistent", "on_fail": "advisory", "claim": "EEGLAB-QC-004", "message": "频谱 dB 的基准依赖数据单位", "remedy": "确认数据以微伏存储；结果会同时给出 input_unit_assumed 与 unit_scale_to_uv"},
+        {"check": "reference_recorded", "on_fail": "advisory", "claim": "EEGLAB-REF-002", "message": "功率谱数值与当前参考方式相关", "remedy": "在方法或图注中写明参考方式"},
+        {"check": "filter_already_applied", "on_fail": "advisory", "claim": "EEGLAB-FILT-007", "message": "已滤波数据的谱在通带外被衰减", "remedy": "报告有效带宽；不要与未滤波数据的频段功率直接比较"}
+      ],
+      "executable": true,
+      "notes": "频段功率 = Σ 10^(dB/10)·Δf·scale²，单位为 µV²；dB 基准为 10*log10(µV²/Hz)，窗长与重叠采用 spectopo 默认值。时频（ERSP/ITC）不在本服务范围，请使用 MNE-MCP 的 mne_tfr_morlet。"
+    },
+    {
+      "id": "M-SPEC-PSD-40-01",
+      "title": "Welch 功率谱（上限 40 Hz）",
+      "intent": "常用 0–40 Hz 谱估计；gamma 频段被裁剪为 30–40 Hz，其余与 M-SPEC-PSD-01 相同。",
+      "params": {"fmax_hz": 40, "fmin_hz": null},
+      "claims": ["EEGLAB-QC-003", "EEGLAB-QC-004", "EEGLAB-QC-006", "EEGLAB-QC-007", "EEGLAB-FILT-005"],
+      "gates": [
+        {"check": "fmax_below_nyquist", "on_fail": "blocked", "claim": "EEGLAB-FILT-003", "message": "频率上限必须低于奈奎斯特频率并留出过渡带", "remedy": "降低 fmax_hz 到采样率的一半以下（建议不超过 90% 奈奎斯特）"},
+        {"check": "psd_record_length_sufficient", "on_fail": "advisory", "claim": "EEGLAB-QC-006", "message": "记录时长决定频率分辨率与平均段数", "remedy": "在报告中写明 Δf≈1/T；低频结论需要更长记录", "args": {"min_s": 10}},
+        {"check": "data_unit_consistent", "on_fail": "advisory", "claim": "EEGLAB-QC-004", "message": "频谱 dB 的基准依赖数据单位", "remedy": "确认数据以微伏存储；结果会同时给出 input_unit_assumed 与 unit_scale_to_uv"},
+        {"check": "reference_recorded", "on_fail": "advisory", "claim": "EEGLAB-REF-002", "message": "功率谱数值与当前参考方式相关", "remedy": "在方法或图注中写明参考方式"}
+      ],
+      "executable": true,
+      "notes": "0–40 Hz 谱；gamma 只统计 30–40 Hz。dB 基准为 10*log10(µV²/Hz)，窗长与重叠采用 spectopo 默认值。时频请使用 MNE-MCP。"
+    }
+  ]
+}

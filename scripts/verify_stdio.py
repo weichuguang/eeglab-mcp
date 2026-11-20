@@ -31,8 +31,9 @@ async def main() -> int:
             tools = await session.list_tools()
             names = [t.name for t in tools.tools]
             print(f"tools discovered: {len(names)}")
-            assert len(names) == 20, names
+            assert len(names) == 21, names
             assert "eeglab_get_status" in names
+            assert "eeglab_compute_psd" in names
             print("  discovery OK")
 
             # 1) a real call against MATLAB

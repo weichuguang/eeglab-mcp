@@ -8,6 +8,6 @@ the top-level [README](../README.md).
 
 | Document | Contents |
 | --- | --- |
-| [METHODOLOGY.md](METHODOLOGY.md) | Knowledge base (47 claims, 39 method profiles), gate engine and override policy |
+| [METHODOLOGY.md](METHODOLOGY.md) | Knowledge base (49 claims, 41 method profiles), gate engine and override policy |
 | [INTEROP.md](INTEROP.md) | Hand-off contract with MNE-MCP and Pingouin-MCP |
 | [STRUCTURE.md](STRUCTURE.md) | Complete inventory of every tracked file |

@@ -1,4 +1,4 @@
-"""The 20 MCP tools exposed by EEGLAB-MCP.
+"""The 21 MCP tools exposed by EEGLAB-MCP.
 
 Every tool validates its own inputs in Python (fast, precise errors), runs the
 method gates that apply to its action, delegates the actual computation to
@@ -32,6 +32,7 @@ GATED_ACTIONS = {
     "ica": "ica",
     "plot": "plot",
     "export_long": "export",
+    "psd": "psd",
 }
 
 
@@ -525,6 +526,45 @@ class Tools:
         except SecurityError as e:
             return self._fail(e.code, e.message, e.hint)
         return self._run("erp", path=p, params={"channel": channel})
+
+    def compute_psd(
+        self,
+        file_path: str,
+        fmax_hz: float | None = None,
+        fmin_hz: float | None = None,
+        method: str | None = None,
+        override_gate: bool = False,
+        override_reason: str = "",
+    ) -> dict:
+        """Estimate a Welch power spectrum and standard band powers."""
+        params: dict[str, Any] = {}
+        try:
+            p = resolve_input(file_path, self.s)
+            if fmax_hz is not None:
+                params["fmax_hz"] = require_range("fmax_hz", fmax_hz, 0.5, 5000.0, " Hz")
+            if fmin_hz is not None:
+                params["fmin_hz"] = require_range("fmin_hz", fmin_hz, 0.0, 5000.0, " Hz")
+            if "fmin_hz" in params and "fmax_hz" in params:
+                if params["fmin_hz"] >= params["fmax_hz"]:
+                    raise SecurityError("BAD_PARAMS", "fmin_hz must be lower than fmax_hz")
+        except SecurityError as e:
+            return self._fail(e.code, e.message, e.hint)
+        gate, err = self._gate(
+            [("psd", params)], p, method=method,
+            override_gate=override_gate, override_reason=override_reason,
+        )
+        if err:
+            return err
+        if gate.blocked:
+            return self._gate_blocked(gate)
+        out = self._run("psd", path=p, params=params, gate=gate)
+        advisory = [
+            item["observed"]
+            for item in gate.to_dict()["items"]
+            if item["status"] == "advisory"
+        ]
+        out.setdefault("warnings", []).extend(advisory)
+        return out
 
     def plot_results(
         self,

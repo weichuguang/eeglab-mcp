@@ -639,27 +639,132 @@ end
 function [res, d] = op_psd(job, res)
 [EEG, res] = load_eeg(job, res);
 p = getfield_def(job, 'params', struct());
-fmax = getfield_def(p, 'fmax_hz', min(40, EEG.srate/2 - 1));
-if fmax >= EEG.srate/2
-    error('EEGLAB_MCP:BadParams', 'fmax_hz must be below Nyquist (%g).', EEG.srate/2);
+
+nyq = EEG.srate / 2;
+fmax = double(getfield_def(p, 'fmax_hz', min(45, nyq - 1)));
+fmin = double(getfield_def(p, 'fmin_hz', 0));
+if fmax <= 0 || fmax >= nyq
+    error('EEGLAB_MCP:BadParams', 'fmax_hz must be below Nyquist (%g Hz).', nyq);
+end
+if fmax > 0.9 * nyq
+    error('EEGLAB_MCP:BadParams', ...
+        'fmax_hz must stay below 90%% of Nyquist (%g Hz).', 0.9 * nyq);
+end
+if fmin < 0 || fmin >= fmax
+    error('EEGLAB_MCP:BadParams', ...
+        'fmin_hz must satisfy 0 <= fmin_hz < fmax_hz.');
 end
 
-[spectra, freqs] = spectopo(reshape(EEG.data, EEG.nbchan, []), 0, EEG.srate, 'plot', 'off');
-sel = freqs <= fmax;
-d = struct();
-d.fmin_hz = 0;
-d.fmax_hz = fmax;
-d.freqs_hz = freqs(sel);
-d.mean_spectrum_db = mean(spectra(:, sel), 1);
-d.channel_count = EEG.nbchan;
-d.note = 'Spectrum computed by EEGLAB spectopo (Welch). Units: dB.';
+[spectra, freqs] = spectopo(double(reshape(EEG.data, EEG.nbchan, [])), 0, EEG.srate, 'plot', 'off');
+freqs = freqs(:);
+% spectopo silently drops channels whose first bin is 0 dB (spectopo.m:375-380).
+if size(spectra, 1) ~= EEG.nbchan || size(spectra, 2) ~= numel(freqs)
+    error('EEGLAB_MCP:BadData', ...
+        'spectopo returned a %dx%d spectrum for %d channels and %d bins.', ...
+        size(spectra, 1), size(spectra, 2), EEG.nbchan, numel(freqs));
+end
+
+sel = freqs >= fmin & freqs <= fmax;
+if nnz(sel) < 2
+    error('EEGLAB_MCP:BadData', ...
+        'Requested band [%g, %g] Hz contains fewer than 2 frequency bins.', fmin, fmax);
+end
+fsel = freqs(sel);
+spectra_sel = spectra(:, sel);
+mean_db = mean(spectra_sel, 1, 'omitnan')';   % column vector: never rely on row layout
+
+[u_scale, u_name] = detect_units(EEG);
+M = compute_psd_metrics(spectra_sel, fsel, u_scale);
 
 out_dir = getfield_def(job, 'output_dir', '.');
+
+% ---- full-resolution channel-mean spectrum
 fn = fullfile(out_dir, 'psd.csv');
-tbl = table(freqs(sel), mean(spectra(:, sel), 1)', 'VariableNames', {'freq_hz', 'mean_db'});
+tbl = table(fsel, mean_db, 'VariableNames', {'freq_hz', 'mean_db'});
 writetable(tbl, fn);
 res.artifacts{end+1} = artifact(fn, 'psd_csv');
+
+% ---- full-resolution per-channel spectrum
+fn2 = fullfile(out_dir, 'psd_channels.csv');
+fid = fopen(fn2, 'w');
+if fid < 0
+    error('EEGLAB_MCP:IOError', 'Cannot write %s', fn2);
+end
+fprintf(fid, 'channel,freq_hz,power_db,power_uv2_hz\n');
+for ch = 1:EEG.nbchan
+    lb = strrep(channel_label(EEG, ch), ',', ' ');
+    for k = 1:numel(fsel)
+        fprintf(fid, '%s,%.6g,%.6g,%.6g\n', ...
+            lb, fsel(k), spectra_sel(ch, k), M.psd_uv2_hz(ch, k));
+    end
+end
+fclose(fid);
+res.artifacts{end+1} = artifact(fn2, 'psd_channels_csv');
+
+% ---- figure
+set(0, 'DefaultFigureVisible', 'off');
+fig = figure('Position', [100 100 760 420], 'Color', 'w');
+plot(fsel, mean_db, 'LineWidth', 1.4);
+xlim([fmin fmax]); xlabel('Frequency (Hz)'); ylabel('Power (dB)');
+title(sprintf('Power spectral density (channel mean, %d channels)', EEG.nbchan));
+grid on; box off;
+fn3 = fullfile(out_dir, 'psd.png');
+print(fig, fn3, '-dpng', '-r150'); close(fig);
+res.artifacts{end+1} = artifact(fn3, 'figure_png');
+
+% ---- JSON payload (frequency axis and spectrum share the same downsampling)
+step = max(1, ceil(numel(fsel) / 300));
+idx = 1:step:numel(fsel);
+
+d = struct();
+d.fmin_hz = fmin;
+d.fmax_hz = fmax;
+d.freqs_hz = fsel(idx);
+d.mean_spectrum_db = mean_db(idx)';
+d.df_hz = M.df_hz;
+d.freq_resolution_hz = M.df_hz;
+d.channel_count = EEG.nbchan;
+d.trial_count = EEG.trials;
+d.is_epoched = EEG.trials > 1;
+d.input_unit_assumed = u_name;
+d.unit_scale_to_uv = u_scale;
+d.bands = M.band;
+d.band_unit = 'uV^2';
+d.db_reference = '10*log10(uV^2/Hz)';
 d.psd_file = fn;
+d.psd_channels_file = fn2;
+d.psd_png_file = fn3;
+d.note = ['Welch power spectrum from EEGLAB spectopo. Band power = ' ...
+    'sum(10^(dB/10)*df)*scale^2 over the band (uV^2). dB is ' ...
+    '10*log10(uV^2/Hz); the Welch window and overlap are spectopo defaults.'];
+if EEG.trials > 1
+    d.note = [d.note ' Epochs were concatenated for spectopo; windows spanning ' ...
+        'trial boundaries mix adjacent trials.'];
+    res.warnings{end+1} = ['PSD was computed on concatenated epochs; windows that ' ...
+        'span trial boundaries mix adjacent trials.'];
+end
+
+if isempty(M.line_noise)
+    d.line_noise_f0_hz = [];
+    d.line_noise_channels = [];
+    d.line_noise_median_rise_db = [];
+else
+    d.line_noise_f0_hz = [M.line_noise.f0_hz];
+    d.line_noise_channels = [M.line_noise.n_channels_over];
+    d.line_noise_median_rise_db = [M.line_noise.median_rise_db];
+    for k = 1:numel(M.line_noise)
+        res.warnings{end+1} = sprintf( ...
+            'Line-noise candidate near %g Hz: median %.1f dB above neighbours (%d channels).', ...
+            M.line_noise(k).f0_hz, M.line_noise(k).median_rise_db, ...
+            M.line_noise(k).n_channels_over);
+    end
+end
+for k = 1:numel(M.warnings)
+    res.warnings{end+1} = M.warnings{k};
+end
+if any(~isfinite(mean_db))
+    res.warnings{end+1} = 'Channel-mean spectrum contains non-finite values.';
+end
 end
 
 % ======================================================================
