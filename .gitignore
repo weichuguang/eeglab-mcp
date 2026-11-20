@@ -1,0 +1,45 @@
+# Environments
+.venv/
+venv/
+env/
+.conda/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local configuration and generated artifacts
+config/default.yaml
+outputs/
+logs/
+/data/
+*.set
+*.fdt
+*.edf
+*.bdf
+*.cnt
+*.vhdr
+*.vmrk
+*.eeg
+
+# Documents and archives (kept out of the repository)
+*.docx
+*.doc
+*.pdf
+*.zip
+~$*
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
