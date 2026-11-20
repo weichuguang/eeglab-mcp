@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a new tool, method profile or workflow.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What analysis or workflow is currently difficult or impossible?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: |
+        Describe the tool or method profile. If it changes analysis behaviour, state the
+        parameters, constraints and which methodology claims support it.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing tools, MATLAB functions or workarounds.
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Design constraints
+      options:
+        - label: The proposal does not require accepting arbitrary MATLAB code.
+        - label: The proposal can run through the existing gate engine.
+        - label: I can help test it against a real dataset.

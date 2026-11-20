@@ -1,0 +1,65 @@
+name: Bug report
+description: Something failed or returned an unexpected result.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please include the exact tool call and the returned
+        `errors` / `warnings`, if available. Do not paste credentials or private data paths.
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: "e.g. 1.1.0 or commit 0275e45"
+    validations:
+      required: true
+  - type: dropdown
+    id: tool
+    attributes:
+      label: Tool
+      options:
+        - eeglab_get_status
+        - eeglab_list_files
+        - eeglab_inspect_dataset
+        - eeglab_load_dataset
+        - eeglab_import_data
+        - eeglab_filter_data
+        - eeglab_rereference
+        - eeglab_epoch_data
+        - eeglab_baseline_correct
+        - eeglab_run_ica
+        - eeglab_compute_erp
+        - eeglab_plot_results
+        - eeglab_qc_report
+        - eeglab_batch_process
+        - eeglab_run_pipeline
+        - eeglab_export_long_table
+        - eeglab_method_catalog
+        - eeglab_official_claims
+        - eeglab_method_preflight
+        - eeglab_get_job_status
+        - Other / server startup
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The call, the expected result and the actual result.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python, MATLAB release, EEGLAB version.
+      placeholder: "Windows 11, Python 3.12.10, MATLAB R2023a, EEGLAB 13.0.0b"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste the returned JSON or matlab_stdout.log excerpt.
+      render: text
