@@ -1,0 +1,47 @@
+{
+  "stage": "baseline",
+  "action": "baseline",
+  "profiles": [
+    {
+      "id": "M-BASE-PRE-01",
+      "title": "刺激前 200 ms 基线校正",
+      "intent": "ERP 研究最常用的基线窗，稳定估计刺激前偏移且不显著缩短有效数据。",
+      "params": {"baseline_start_s": -0.2, "baseline_end_s": 0.0},
+      "claims": ["EEGLAB-EPOCH-004", "EEGLAB-EPOCH-003", "EEGLAB-GEN-002"],
+      "gates": [
+        {"check": "baseline_before_stimulus", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-004", "message": "基线窗完全位于刺激之前", "remedy": "基线窗跨越刺激零点会把诱发活动当作偏移扣除"},
+        {"check": "baseline_length", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-004", "message": "基线窗长度足以稳定估计偏移", "remedy": "短于 100 ms 的基线估计方差较大"},
+        {"check": "baseline_within_epoch", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-003", "message": "基线区间落在分段窗口之内", "remedy": "先确认分段 tmin 早于基线起点"}
+      ],
+      "executable": true,
+      "notes": "基线校正假设刺激前活动与刺激后活动可分离。"
+    },
+    {
+      "id": "M-BASE-PRE-02",
+      "title": "刺激前 100 ms 短基线校正",
+      "intent": "在刺激前可用时间很短时保留更多试次，代价是基线估计更不稳定。",
+      "params": {"baseline_start_s": -0.1, "baseline_end_s": 0.0},
+      "claims": ["EEGLAB-EPOCH-004", "EEGLAB-EPOCH-003"],
+      "gates": [
+        {"check": "baseline_before_stimulus", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-004", "message": "基线窗完全位于刺激之前", "remedy": "不要把基线窗延伸到 0 之后"},
+        {"check": "baseline_length", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-004", "message": "100 ms 基线较短，偏移估计方差偏大", "remedy": "试次足够时优先使用 200 ms 基线"},
+        {"check": "baseline_within_epoch", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-003", "message": "基线区间落在分段窗口之内", "remedy": "确认分段起点不晚于 −100 ms"}
+      ],
+      "executable": true,
+      "notes": "短基线的选择需在报告中说明原因。"
+    },
+    {
+      "id": "M-BASE-NONE-01",
+      "title": "不做基线校正（保留绝对电位）",
+      "intent": "用于需要绝对电位或慢电位的研究，此类分析中基线校正本身会移除关注的信号。",
+      "params": {"baseline_start_s": null, "baseline_end_s": null},
+      "claims": ["EEGLAB-EPOCH-004", "EEGLAB-GEN-004"],
+      "gates": [
+        {"check": "baseline_skip_declared", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-004", "message": "跳过基线校正需要明确理由", "remedy": "在报告中写明为何保留绝对电位，并说明漂移如何处理"},
+        {"check": "data_unit_consistent", "on_fail": "advisory", "claim": "EEGLAB-QC-004", "message": "绝对电位的解释依赖单位正确", "remedy": "确认数据以微伏存储"}
+      ],
+      "executable": true,
+      "notes": "跳过基线不是中性的默认选项，必须有方法学理由。"
+    }
+  ]
+}

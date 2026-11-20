@@ -1,0 +1,79 @@
+{
+  "stage": "epoch",
+  "action": "epoch",
+  "profiles": [
+    {
+      "id": "M-EPOCH-STIM-01",
+      "title": "刺激锁时分段 −200–800 ms",
+      "intent": "覆盖 P300 与多数中晚期成分的标准窗口，适用于常规事件相关电位研究。",
+      "params": {"tmin_s": -0.2, "tmax_s": 0.8},
+      "claims": ["EEGLAB-EPOCH-001", "EEGLAB-EPOCH-002", "EEGLAB-EPOCH-003", "EEGLAB-EPOCH-005", "EEGLAB-EPOCH-007"],
+      "gates": [
+        {"check": "event_types_present", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-001", "message": "请求的事件标签在数据中实际存在", "remedy": "先检查事件列表；标签与实验条件未必一一对应"},
+        {"check": "event_types_not_structural", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-002", "message": "请求的标签不是边界或阻抗等结构标记", "remedy": "boundary 等标记不是刺激触发，不能作为分段依据"},
+        {"check": "epoch_within_record", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-003", "message": "分段窗口未超出记录边界", "remedy": "边缘试次会被静默丢弃，注意有效试次数"},
+        {"check": "epoch_span", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-003", "message": "窗口跨度在合理范围内", "remedy": "窗口过窄会截断成分，过宽会引入无关活动"}
+      ],
+      "executable": true,
+      "notes": "该窗口是 ERP 研究的通用起点，不是对特定成分的最优选择。"
+    },
+    {
+      "id": "M-EPOCH-STIM-02",
+      "title": "刺激锁时分段 −200–600 ms",
+      "intent": "聚焦早期至中期的感觉与认知成分，减少晚期慢波的干扰。",
+      "params": {"tmin_s": -0.2, "tmax_s": 0.6},
+      "claims": ["EEGLAB-EPOCH-003", "EEGLAB-EPOCH-004", "EEGLAB-EPOCH-006"],
+      "gates": [
+        {"check": "event_types_present", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-001", "message": "请求的事件标签在数据中实际存在", "remedy": "先检查事件列表"},
+        {"check": "epoch_span", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-003", "message": "窗口跨度在合理范围内", "remedy": "若关注 P300 晚期成分，窗口可能不足"},
+        {"check": "baseline_before_stimulus", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-004", "message": "分段包含刺激前区间，可做基线校正", "remedy": "若 tmin 为 0，将无法做基线校正"}
+      ],
+      "executable": true,
+      "notes": "适用于 N1/P2/N2 一类较早成分；P300 之后的长时程成分会被截断。"
+    },
+    {
+      "id": "M-EPOCH-ODDBALL-01",
+      "title": "Oddball 长窗分段 −200–1200 ms",
+      "intent": "覆盖 P300 的完整时间进程，包括晚期正慢波。",
+      "params": {"tmin_s": -0.2, "tmax_s": 1.2},
+      "claims": ["EEGLAB-EPOCH-003", "EEGLAB-EPOCH-004", "EEGLAB-EPOCH-006", "EEGLAB-FILT-002"],
+      "gates": [
+        {"check": "event_types_present", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-001", "message": "请求的事件标签在数据中实际存在", "remedy": "确认偏差刺激与标准刺激的标签映射"},
+        {"check": "event_types_not_structural", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-002", "message": "请求的标签不是结构标记", "remedy": "排除 boundary 等标记"},
+        {"check": "epoch_within_record", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-003", "message": "1.2 s 的窗口在记录边界内", "remedy": "刺激间隔短于窗口时，相邻试次会重叠"},
+        {"check": "highpass_component_risk", "on_fail": "advisory", "claim": "EEGLAB-FILT-002", "message": "长窗分析要求低高通截止以保留慢波", "remedy": "若此前使用 1 Hz 高通，P300 幅值可能被系统性削弱"}
+      ],
+      "executable": true,
+      "notes": "窗口长度需与刺激间隔相容，否则相邻试次重叠。"
+    },
+    {
+      "id": "M-EPOCH-RESP-01",
+      "title": "反应锁时分段 −500–500 ms",
+      "intent": "以反应时刻为零点，研究运动准备与反应相关电位。",
+      "params": {"tmin_s": -0.5, "tmax_s": 0.5, "time_locking": "response"},
+      "claims": ["EEGLAB-EPOCH-006", "EEGLAB-EPOCH-001", "EEGLAB-EPOCH-003"],
+      "gates": [
+        {"check": "event_types_present", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-001", "message": "反应事件标签在数据中实际存在", "remedy": "反应锁时依赖按键事件，先确认事件类型"},
+        {"check": "epoch_span", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-006", "message": "窗口围绕反应时刻对称", "remedy": "刺激锁时与反应锁时的窗口不可混用"},
+        {"check": "event_types_not_structural", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-002", "message": "请求的标签不是结构标记", "remedy": "排除非触发事件"}
+      ],
+      "executable": true,
+      "notes": "反应锁时的分段零点与刺激锁时不同，二者的潜伏期不可直接比较。"
+    },
+    {
+      "id": "M-EPOCH-MULTI-01",
+      "title": "多条件同时分段",
+      "intent": "在同一次分段中保留多个条件标签，避免分批处理造成的试次不一致。",
+      "params": {"tmin_s": -0.2, "tmax_s": 0.8, "event_types": ["square", "rt"]},
+      "claims": ["EEGLAB-EPOCH-001", "EEGLAB-EPOCH-002", "EEGLAB-EPOCH-007", "EEGLAB-GEN-001"],
+      "gates": [
+        {"check": "event_types_present", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-001", "message": "所有请求的标签均存在于数据中", "remedy": "任一标签缺失都会导致该条件静默为空"},
+        {"check": "event_types_not_structural", "on_fail": "blocked", "claim": "EEGLAB-EPOCH-002", "message": "请求的标签均为真实触发", "remedy": "排除 boundary、阻抗与排除标记"},
+        {"check": "event_cooccurrence", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-007", "message": "同一时刻不存在重复标签导致的重复分段", "remedy": "同时刻的多个标签需先合并或明确取舍"},
+        {"check": "event_semantics_user_confirmed", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-001", "message": "标签到实验条件的映射由研究者确认，系统不假设", "remedy": "在报告中写明标签语义"}
+      ],
+      "executable": true,
+      "notes": "多条件同时分段要求事件标签语义清晰；标签相同不意味着条件相同。"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "stage": "asr",
+  "action": "asr",
+  "profiles": [
+    {
+      "id": "M-ASR-CLEAN-01",
+      "title": "clean_rawdata ASR（cutoff 20）",
+      "intent": "以插件默认强度重建突发伪迹段，是 ASR 的常用起点。",
+      "params": {"asr_cutoff": 20, "apply_to": "continuous"},
+      "claims": ["EEGLAB-ASR-001", "EEGLAB-ASR-002", "EEGLAB-ASR-003", "EEGLAB-ASR-004"],
+      "gates": [
+        {"check": "plugin_available", "on_fail": "blocked", "claim": "EEGLAB-ASR-001", "message": "clean_rawdata 插件在当前 EEGLAB 安装中可用", "remedy": "安装 clean_rawdata 后重启 MATLAB"},
+        {"check": "processing_stage_order", "on_fail": "blocked", "claim": "EEGLAB-ASR-003", "message": "ASR 作用于连续数据且位于分段之前", "remedy": "对分段数据做 ASR 会把试次边界当作信号突变"},
+        {"check": "asr_cutoff_range", "on_fail": "advisory", "claim": "EEGLAB-ASR-002", "message": "cutoff 取值落在常用范围内", "remedy": "cutoff 过低会大量重建正常数据，过高则去不掉伪迹"},
+        {"check": "raw_data_preserved", "on_fail": "advisory", "claim": "EEGLAB-ASR-004", "message": "原始记录只读保留，ASR 结果写入新文件", "remedy": "ASR 不可逆，必须保留原始数据与参数"},
+        {"check": "capability_available", "on_fail": "blocked", "claim": "EEGLAB-GEN-004", "message": "本版本未接入 ASR 执行路径", "remedy": "先手工在 EEGLAB 中完成 ASR，或用 method_preflight 只做前置检查"}
+      ],
+      "executable": false,
+      "notes": "当前版本未接入 clean_rawdata 执行路径，本配置用于前置检查与插件就绪判断。"
+    },
+    {
+      "id": "M-ASR-CLEAN-02",
+      "title": "clean_rawdata ASR（cutoff 10，严格）",
+      "intent": "更强的伪迹抑制，适合运动或环境噪声严重的记录。",
+      "params": {"asr_cutoff": 10, "apply_to": "continuous"},
+      "claims": ["EEGLAB-ASR-001", "EEGLAB-ASR-002", "EEGLAB-ASR-004"],
+      "gates": [
+        {"check": "plugin_available", "on_fail": "blocked", "claim": "EEGLAB-ASR-001", "message": "clean_rawdata 插件可用", "remedy": "安装插件后重试"},
+        {"check": "asr_cutoff_range", "on_fail": "advisory", "claim": "EEGLAB-ASR-002", "message": "严格 cutoff 会重建更多数据段", "remedy": "检查重建比例，过高的重建比例意味着数据可能不适合 ASR"},
+        {"check": "processing_stage_order", "on_fail": "blocked", "claim": "EEGLAB-ASR-003", "message": "ASR 位于分段之前", "remedy": "先在连续数据上处理"},
+        {"check": "capability_available", "on_fail": "blocked", "claim": "EEGLAB-GEN-004", "message": "本版本未接入 ASR 执行路径", "remedy": "先手工在 EEGLAB 中完成 ASR，或用 method_preflight 只做前置检查"}
+      ],
+      "executable": false,
+      "notes": "严格设置的代价是可能削弱真实的高幅神经活动。"
+    },
+    {
+      "id": "M-ASR-CLEAN-03",
+      "title": "clean_rawdata ASR（cutoff 30，宽松）",
+      "intent": "仅处理最严重的瞬态伪迹，尽量保留原始信号。",
+      "params": {"asr_cutoff": 30, "apply_to": "continuous"},
+      "claims": ["EEGLAB-ASR-001", "EEGLAB-ASR-002", "EEGLAB-ASR-004"],
+      "gates": [
+        {"check": "plugin_available", "on_fail": "blocked", "claim": "EEGLAB-ASR-001", "message": "clean_rawdata 插件可用", "remedy": "安装插件后重试"},
+        {"check": "asr_cutoff_range", "on_fail": "advisory", "claim": "EEGLAB-ASR-002", "message": "宽松 cutoff 可能残留中轻度伪迹", "remedy": "结合独立成分分析处理残留伪迹"},
+        {"check": "raw_data_preserved", "on_fail": "advisory", "claim": "EEGLAB-ASR-004", "message": "原始记录只读保留", "remedy": "保留原始数据以便复核"},
+        {"check": "capability_available", "on_fail": "blocked", "claim": "EEGLAB-GEN-004", "message": "本版本未接入 ASR 执行路径", "remedy": "先手工在 EEGLAB 中完成 ASR，或用 method_preflight 只做前置检查"}
+      ],
+      "executable": false,
+      "notes": "ASR 与 ICA 不是替代关系，二者的目标伪迹类型不同。"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "stage": "plot",
+  "action": "plot",
+  "profiles": [
+    {
+      "id": "M-PLOT-TOPO-01",
+      "title": "头皮地形图",
+      "intent": "在指定时刻展示电位分布，用于检查空间模式与成分地形。",
+      "params": {"kind": "topomap", "time_s": 0.3},
+      "claims": ["EEGLAB-QC-001", "EEGLAB-QC-004", "EEGLAB-REF-002"],
+      "gates": [
+        {"check": "chanlocs_coverage", "on_fail": "blocked", "claim": "EEGLAB-QC-001", "message": "通道定位覆盖率足以支持地形插值", "remedy": "缺少定位时地形图只是数值插值，不能解释为头皮分布"},
+        {"check": "data_unit_consistent", "on_fail": "advisory", "claim": "EEGLAB-QC-004", "message": "颜色标尺的单位与数据单位一致", "remedy": "单位错误会使色标数值相差百万倍"},
+        {"check": "reference_recorded", "on_fail": "advisory", "claim": "EEGLAB-REF-002", "message": "地形图数值依赖当前参考方式", "remedy": "图注需写明参考方式"}
+      ],
+      "executable": true,
+      "notes": "不同参考下的地形图不可直接比较。"
+    },
+    {
+      "id": "M-PLOT-ERP-01",
+      "title": "ERP 波形图",
+      "intent": "展示条件平均后的时间进程，用于检查成分潜伏期与极性。",
+      "params": {"kind": "erp_waveform"},
+      "claims": ["EEGLAB-EPOCH-003", "EEGLAB-GEN-003", "EEGLAB-STAT-006"],
+      "gates": [
+        {"check": "trials_sufficient", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-003", "message": "试次数足以形成稳定的平均波形", "remedy": "试次过少时波形主要反映噪声"},
+        {"check": "waveform_labeling", "on_fail": "advisory", "claim": "EEGLAB-GEN-003", "message": "波形上的成分标注需与数据实际峰位一致", "remedy": "不要仅凭预期潜伏期标注成分"},
+        {"check": "qc_limitations_declared", "on_fail": "advisory", "claim": "EEGLAB-QC-005", "message": "图注说明未执行的检查与样本量", "remedy": "缺少样本量的波形图难以评估可靠性"}
+      ],
+      "executable": true,
+      "notes": "波形图是描述性证据，不构成统计结论。"
+    }
+  ]
+}

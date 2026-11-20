@@ -1,0 +1,61 @@
+{
+  "stage": "reref",
+  "action": "reref",
+  "profiles": [
+    {
+      "id": "M-REF-AVG-01",
+      "title": "平均参考（全通道均值）",
+      "intent": "消除参考电极自身的噪声，适合电极覆盖全头且分布均匀的常规头皮记录。",
+      "params": {"method": "average", "channels": []},
+      "claims": ["EEGLAB-REF-001", "EEGLAB-REF-002", "EEGLAB-REF-003", "EEGLAB-REF-005"],
+      "gates": [
+        {"check": "chanlocs_coverage", "on_fail": "advisory", "claim": "EEGLAB-REF-001", "message": "电极覆盖范围足以支撑平均参考假设", "remedy": "通道数过少或缺少后部电极时，改用乳突参考"},
+        {"check": "reference_before_ica", "on_fail": "advisory", "claim": "EEGLAB-REF-005", "message": "重参考发生在 ICA 之前", "remedy": "已分解的数据改参考会使成分地形图失去对应关系"},
+        {"check": "flat_channel_absent", "on_fail": "advisory", "claim": "EEGLAB-QC-002", "message": "不存在会污染平均参考的平坦通道", "remedy": "先标记或插值平坦通道，再做平均参考"},
+        {"check": "reference_recorded", "on_fail": "advisory", "claim": "EEGLAB-REF-003", "message": "参考方式将被写入派生数据的来源信息", "remedy": "报告中必须写明参考方式"}
+      ],
+      "executable": true,
+      "notes": "平均参考会改变绝对电位，跨参考的幅值不可直接比较。"
+    },
+    {
+      "id": "M-REF-MAST-01",
+      "title": "双侧乳突平均参考",
+      "intent": "以 M1/M2 均值作参考，适用于已有独立乳突电极的听觉与言语研究。",
+      "params": {"method": "channels", "channels": ["M1", "M2"]},
+      "claims": ["EEGLAB-REF-004", "EEGLAB-REF-002", "EEGLAB-REF-003", "EEGLAB-REF-005"],
+      "gates": [
+        {"check": "reference_channels_present", "on_fail": "blocked", "claim": "EEGLAB-REF-004", "message": "参考电极在数据中独立存在", "remedy": "确认 M1/M2 是否为独立记录通道；若已作为在线参考则不可重复使用"},
+        {"check": "reference_before_ica", "on_fail": "advisory", "claim": "EEGLAB-REF-005", "message": "重参考发生在 ICA 之前", "remedy": "已分解的数据改参考会使成分地形图失去对应关系"},
+        {"check": "reference_recorded", "on_fail": "advisory", "claim": "EEGLAB-REF-003", "message": "参考方式将被写入派生数据的来源信息", "remedy": "报告中必须写明参考方式"}
+      ],
+      "executable": true,
+      "notes": "参考电极接触不良时，全部通道会同时出现同相位噪声。"
+    },
+    {
+      "id": "M-REF-CZ-01",
+      "title": "Cz 单电极参考",
+      "intent": "保留其他电极的绝对活动，适合关注 Cz 邻近区域以外成分的研究。",
+      "params": {"method": "channels", "channels": ["Cz"]},
+      "claims": ["EEGLAB-REF-004", "EEGLAB-REF-002", "EEGLAB-GEN-002"],
+      "gates": [
+        {"check": "reference_channels_present", "on_fail": "blocked", "claim": "EEGLAB-REF-004", "message": "参考电极在数据中独立存在", "remedy": "确认 Cz 未被移作他用"},
+        {"check": "reference_recorded", "on_fail": "advisory", "claim": "EEGLAB-REF-002", "message": "参考方式将被记录，幅值不可与其他参考直接比较", "remedy": "报告中写明参考方式"}
+      ],
+      "executable": true,
+      "notes": "单电极参考会把该电极自身的活动叠加到所有通道上。"
+    },
+    {
+      "id": "M-REF-REST-01",
+      "title": "REST 参考（无穷远参考）",
+      "intent": "通过头模型估计无穷远参考，减少平均参考的偏倚。",
+      "params": {"method": "REST", "channels": []},
+      "claims": ["EEGLAB-REF-001", "EEGLAB-REF-003", "EEGLAB-GEN-004"],
+      "gates": [
+        {"check": "chanlocs_coverage", "on_fail": "blocked", "claim": "EEGLAB-REF-001", "message": "REST 需要完整通道定位与头模型", "remedy": "补齐通道定位后再考虑 REST"},
+        {"check": "capability_available", "on_fail": "blocked", "claim": "EEGLAB-GEN-004", "message": "REST 在当前实现中未提供", "remedy": "当前版本只实现平均参考与通道参考，REST 属规划项"}
+      ],
+      "executable": false,
+      "notes": "该配置仅作方法学目录用途，执行时会因能力缺失被阻断。"
+    }
+  ]
+}

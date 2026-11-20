@@ -1,0 +1,34 @@
+{
+  "stage": "export",
+  "action": "export",
+  "profiles": [
+    {
+      "id": "M-EXP-LONG-01",
+      "title": "整洁长表导出（被试 × 条件 × 通道 × 试次）",
+      "intent": "把分段数据导出为一行一个观测的长表，供外部统计工具直接读取。",
+      "params": {"format": "long", "aggregate": "none"},
+      "claims": ["EEGLAB-STAT-002", "EEGLAB-STAT-006", "EEGLAB-GEN-002", "EEGLAB-GEN-003"],
+      "gates": [
+        {"check": "trials_sufficient", "on_fail": "advisory", "claim": "EEGLAB-GEN-003", "message": "试次数足以进行后续统计", "remedy": "试次过少时组水平分析不稳定"},
+        {"check": "stats_unit_of_analysis", "on_fail": "advisory", "claim": "EEGLAB-STAT-002", "message": "长表同时保留被试标识与试次标识", "remedy": "外部统计必须按被试聚合，不要把试次当独立样本"},
+        {"check": "export_metadata_complete", "on_fail": "advisory", "claim": "EEGLAB-GEN-002", "message": "导出结果附带来源文件与参数记录", "remedy": "缺少元数据的表格无法复算"}
+      ],
+      "executable": true,
+      "notes": "长表本身不做统计，只保证数据结构与标识完整。"
+    },
+    {
+      "id": "M-EXP-WINDOW-01",
+      "title": "预先声明的测量窗均值导出",
+      "intent": "以事先确定的通道与时间窗计算均值，减少多重比较并避免事后选窗。",
+      "params": {"format": "long", "aggregate": "window_mean", "window_declared": true},
+      "claims": ["EEGLAB-STAT-003", "EEGLAB-STAT-006", "EEGLAB-GEN-002"],
+      "gates": [
+        {"check": "stats_window_declared", "on_fail": "blocked", "claim": "EEGLAB-STAT-003", "message": "测量窗在使用前已声明", "remedy": "先看结果再选窗属于循环分析，必须在报告中避免"},
+        {"check": "window_independent_of_result", "on_fail": "advisory", "claim": "EEGLAB-STAT-003", "message": "窗口独立性无法由系统自动核验", "remedy": "需在研究记录中体现窗口的预先声明"},
+        {"check": "export_metadata_complete", "on_fail": "advisory", "claim": "EEGLAB-GEN-002", "message": "导出结果附带窗口定义与来源信息", "remedy": "保留窗口起止与通道列表"}
+      ],
+      "executable": true,
+      "notes": "窗口均值导出降低比较次数，但不能替代多重比较校正。"
+    }
+  ]
+}

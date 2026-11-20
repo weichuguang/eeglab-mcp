@@ -1,0 +1,76 @@
+{
+  "stage": "ica",
+  "action": "ica",
+  "profiles": [
+    {
+      "id": "M-ICA-RUNICA-01",
+      "title": "runica 全通道分解（连续数据）",
+      "intent": "在连续数据上做完整 ICA 分解，用于后续人工判读眼电、心电与肌电成分。",
+      "params": {"algorithm": "runica", "n_components": null},
+      "claims": ["EEGLAB-ICA-001", "EEGLAB-ICA-002", "EEGLAB-ICA-004", "EEGLAB-ICA-005", "EEGLAB-ICA-008"],
+      "gates": [
+        {"check": "ica_input_continuous", "on_fail": "blocked", "claim": "EEGLAB-ICA-005", "message": "输入为连续数据，时间连续性未被分段破坏", "remedy": "对分段数据做 ICA 得到的成分通常不可解释，应先回到连续数据"},
+        {"check": "ica_sample_sufficiency", "on_fail": "blocked", "claim": "EEGLAB-ICA-001", "message": "采样点数相对通道数足以稳定估计解混矩阵", "remedy": "样本不足时先降采样或减少通道；否则解不收敛"},
+        {"check": "ica_rank_sufficient", "on_fail": "advisory", "claim": "EEGLAB-ICA-006", "message": "数据秩与通道数一致，不存在插值导致的秩亏", "remedy": "插值过坏导后先做降秩处理"},
+        {"check": "component_rejection_manual", "on_fail": "advisory", "claim": "EEGLAB-ICA-004", "message": "成分剔除不在本步骤自动执行，需依据事先声明的标准人工确认", "remedy": "记录剔除标准与成分编号，不要在未记录的情况下剔除"}
+      ],
+      "executable": true,
+      "notes": "ICA 只负责分解，不负责判断哪些成分是伪迹。"
+    },
+    {
+      "id": "M-ICA-RUNICA-02",
+      "title": "runica 主成分降维分解",
+      "intent": "先降到通道数减一的主成分再做 ICA，避免秩亏数据产生镜像成分。",
+      "params": {"algorithm": "runica", "n_components": "pca"},
+      "claims": ["EEGLAB-ICA-006", "EEGLAB-ICA-001", "EEGLAB-ICA-008"],
+      "gates": [
+        {"check": "ica_input_continuous", "on_fail": "blocked", "claim": "EEGLAB-ICA-005", "message": "输入为连续数据", "remedy": "分段数据上做 ICA 不可取"},
+        {"check": "ica_sample_sufficiency", "on_fail": "blocked", "claim": "EEGLAB-ICA-001", "message": "采样点数相对通道数足以支撑分解", "remedy": "样本不足时进一步降采样"},
+        {"check": "ica_rank_sufficient", "on_fail": "advisory", "claim": "EEGLAB-ICA-006", "message": "降维后再分解可回避秩亏问题", "remedy": "确认降维后的成分数仍覆盖主要方差"}
+      ],
+      "executable": true,
+      "notes": "降维会损失部分方差，成分数少于通道数时报告需说明。"
+    },
+    {
+      "id": "M-ICA-PCA-01",
+      "title": "PCA 分解（快速降维）",
+      "intent": "以主成分代替独立成分，速度快但只保证去相关、不保证独立。",
+      "params": {"algorithm": "pca", "n_components": null},
+      "claims": ["EEGLAB-ICA-002", "EEGLAB-ICA-003", "EEGLAB-ICA-004"],
+      "gates": [
+        {"check": "ica_input_continuous", "on_fail": "advisory", "claim": "EEGLAB-ICA-005", "message": "输入为连续数据", "remedy": "PCA 对分段的敏感度低于 ICA，但仍建议使用连续数据"},
+        {"check": "component_rejection_manual", "on_fail": "advisory", "claim": "EEGLAB-ICA-003", "message": "成分判读需结合地形图、功率谱与时间序列", "remedy": "PCA 成分未做独立性假设，更需多证据判读"}
+      ],
+      "executable": true,
+      "notes": "PCA 成分不能按 ICA 的方式解释为独立源。"
+    },
+    {
+      "id": "M-ICA-ICLABEL-01",
+      "title": "ICLabel 自动成分分类",
+      "intent": "用预训练分类器给出成分类别概率，作为人工判读的辅助信息。",
+      "params": {"algorithm": "runica", "classifier": "ICLabel"},
+      "claims": ["EEGLAB-ICA-003", "EEGLAB-ICA-004"],
+      "gates": [
+        {"check": "plugin_available", "on_fail": "blocked", "claim": "EEGLAB-ICA-003", "message": "ICLabel 插件可用，分类概率只作为判读证据之一", "remedy": "安装 ICLabel 后重启 MATLAB；分类概率需与地形图、功率谱和时间序列共同判读"},
+        {"check": "chanlocs_coverage", "on_fail": "advisory", "claim": "EEGLAB-QC-001", "message": "通道定位完整，分类器的地形图输入有效", "remedy": "定位缺失会显著降低分类准确度"},
+        {"check": "component_rejection_manual", "on_fail": "advisory", "claim": "EEGLAB-ICA-004", "message": "分类概率只是辅助证据，剔除仍需人工确认", "remedy": "不要把概率阈值当作自动剔除依据"},
+        {"check": "capability_available", "on_fail": "blocked", "claim": "EEGLAB-GEN-004", "message": "本版本未接入 ICLabel 执行路径", "remedy": "用 method_preflight 做前置检查；分类需在 EEGLAB 中手工执行"}
+      ],
+      "executable": false,
+      "notes": "当前版本尚未把 ICLabel 接入执行层，本配置用于记录预期方法与所需插件。"
+    },
+    {
+      "id": "M-ICA-REJECT-01",
+      "title": "成分剔除决策记录",
+      "intent": "把剔除标准与成分编号显式写入产物，使剔除过程可复现。",
+      "params": {"algorithm": "manual_reject", "criteria": "预注册"},
+      "claims": ["EEGLAB-ICA-004", "EEGLAB-ICA-003", "EEGLAB-GEN-002"],
+      "gates": [
+        {"check": "component_rejection_manual", "on_fail": "advisory", "claim": "EEGLAB-ICA-004", "message": "剔除标准必须事先声明并留痕", "remedy": "在分析前写定判据，不要依据结果反复调整"},
+        {"check": "capability_available", "on_fail": "blocked", "claim": "EEGLAB-GEN-004", "message": "自动剔除在设计上被禁止", "remedy": "本系统不提供自动剔除，需由研究者在 EEGLAB 界面确认后记录"}
+      ],
+      "executable": false,
+      "notes": "该条目是刻意保留的不可执行配置：自动剔除成分违反系统设计原则。"
+    }
+  ]
+}

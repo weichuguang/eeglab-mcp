@@ -1,0 +1,48 @@
+{
+  "stage": "qc",
+  "action": "qc",
+  "profiles": [
+    {
+      "id": "M-QC-CHAN-01",
+      "title": "通道质量检查（平坦与离群）",
+      "intent": "在参考、ICA 与分段之前识别平坦通道与幅值离群通道。",
+      "params": {"check": "channel_quality"},
+      "claims": ["EEGLAB-QC-002", "EEGLAB-QC-001", "EEGLAB-QC-005"],
+      "gates": [
+        {"check": "flat_channel_absent", "on_fail": "advisory", "claim": "EEGLAB-QC-002", "message": "数据中不存在方差近零的平坦通道", "remedy": "平坦通道通常意味着电极脱落，应先标记或插值"},
+        {"check": "chanlocs_coverage", "on_fail": "advisory", "claim": "EEGLAB-QC-001", "message": "通道定位覆盖率足以支持地形图与插值", "remedy": "补齐定位后再做地形图或插值"},
+        {"check": "qc_limitations_declared", "on_fail": "advisory", "claim": "EEGLAB-QC-005", "message": "报告中列出未执行的检查项", "remedy": "未执行的检查不能被默认视为通过"}
+      ],
+      "executable": true,
+      "notes": "质量检查只给出可观察指标，不替代研究者对数据的判断。"
+    },
+    {
+      "id": "M-QC-SPEC-01",
+      "title": "频谱与线路噪声检查",
+      "intent": "通过功率谱判断线路噪声水平与滤波配置是否合适。",
+      "params": {"check": "spectrum"},
+      "claims": ["EEGLAB-QC-003", "EEGLAB-FILT-005", "EEGLAB-QC-004"],
+      "gates": [
+        {"check": "line_frequency_match", "on_fail": "advisory", "claim": "EEGLAB-QC-003", "message": "目标线路频率与记录地区一致", "remedy": "中国大陆为 50 Hz，北美为 60 Hz"},
+        {"check": "data_unit_consistent", "on_fail": "advisory", "claim": "EEGLAB-QC-004", "message": "数据单位与 EEGLAB 微伏约定一致", "remedy": "单位错误会使功率谱数值整体偏移"},
+        {"check": "qc_limitations_declared", "on_fail": "advisory", "claim": "EEGLAB-QC-005", "message": "报告中列出未执行的检查项", "remedy": "注明哪些检查未做"}
+      ],
+      "executable": true,
+      "notes": "线路噪声应通过频谱峰值确认，而不是凭波形判断。"
+    },
+    {
+      "id": "M-QC-EVENT-01",
+      "title": "事件语义审计",
+      "intent": "在分段前核对事件标签与实验条件的对应关系，并排除结构标记。",
+      "params": {"check": "events"},
+      "claims": ["EEGLAB-EPOCH-001", "EEGLAB-EPOCH-002", "EEGLAB-EPOCH-007"],
+      "gates": [
+        {"check": "event_types_present", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-001", "message": "事件列表可读且标签可枚举", "remedy": "事件为空时无法分段，应先检查导入流程"},
+        {"check": "event_types_not_structural", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-002", "message": "数据中混有边界或阻抗等结构标记，需在分段时排除", "remedy": "结构标记不是刺激触发"},
+        {"check": "event_semantics_user_confirmed", "on_fail": "advisory", "claim": "EEGLAB-EPOCH-001", "message": "标签语义由研究者确认，系统不做假设", "remedy": "在报告中写明标签到条件的映射"}
+      ],
+      "executable": true,
+      "notes": "事件数量的合理性只能提示问题，不能替代语义确认。"
+    }
+  ]
+}

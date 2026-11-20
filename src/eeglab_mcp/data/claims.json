@@ -1,0 +1,394 @@
+{
+  "catalog_version": "2026.10",
+  "schema_version": 1,
+  "eeglab_baseline": "13.0.0b",
+  "note": "每条依据均为对 EEGLAB/SCCN 文档与相关方法学文献的释义（paraphrase），并注明来源文档与定位；不逐字引用原文。依据本身不是结论，只是门控判断的锚点。",
+  "topics": {
+    "FILT": "滤波",
+    "REF": "重参考",
+    "ICA": "独立成分分析",
+    "EPOCH": "分段与基线",
+    "ASR": "伪迹子空间重建",
+    "STAT": "统计与推断",
+    "QC": "质量控制",
+    "GEN": "通用原则"
+  },
+  "claims": [
+    {
+      "id": "EEGLAB-FILT-001",
+      "topic": "FILT",
+      "statement": "pop_eegfiltnew 默认采用零相位 FIR 实现（minphase=0），不会引入相位延迟，因而不会改变 ERP 成分的潜伏期。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "pop_eegfiltnew.m"},
+      "risk": "使用非零相位滤波会使成分峰值位置偏移，与文献潜伏期直接比较时产生系统误差。",
+      "applies_to": ["filter", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-FILT-002",
+      "topic": "FILT",
+      "statement": "高通截止频率决定慢电位保留程度：0.1 Hz 常用于保留慢成分，而 1 Hz 及以上会显著削弱 P300 一类慢波。",
+      "source": {"kind": "paper", "title": "Polich (2007), Updating P300", "locator": "Clinical Neurophysiology 118(10)"},
+      "risk": "高通过高会把要研究的成分本身滤掉，且无法从后续结果中察觉。",
+      "applies_to": ["filter", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-FILT-003",
+      "topic": "FILT",
+      "statement": "任何低通或陷波截止频率都必须低于奈奎斯特频率（采样率的一半），否则滤波器不可实现或结果失真。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "pop_eegfiltnew.m；eegfilt.m"},
+      "risk": "超过奈奎斯特的截止频率在数学上无定义，MATLAB 侧报错或产生混叠。",
+      "applies_to": ["filter", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-FILT-004",
+      "topic": "FILT",
+      "statement": "FIR 滤波器的阶数由过渡带宽度决定：截止频率越低、采样率越高，所需阶数越长，边界效应影响的数据段也越长。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "pop_eegfiltnew.m（filter order 与 transition band 说明）"},
+      "risk": "在短数据上使用很低的高通会产生明显边界瞬态，污染数据两端。",
+      "applies_to": ["filter", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-FILT-005",
+      "topic": "FILT",
+      "statement": "陷波应针对记录所在地区的线路频率（中国大陆为 50 Hz，北美为 60 Hz），陷波带宽过宽会损伤邻近频段。",
+      "source": {"kind": "doc", "title": "EEGLAB Tutorial", "locator": "预处理章节：线噪声与陷波"},
+      "risk": "用错频率的陷波既不去除噪声，又可能在目标频段留下凹口。",
+      "applies_to": ["filter", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-FILT-006",
+      "topic": "FILT",
+      "statement": "滤波应在连续数据上完成、先于分段，避免分段边界效应出现在每个试次的两端。",
+      "source": {"kind": "paper", "title": "Delorme & Makeig (2004), EEGLAB", "locator": "Journal of Neuroscience Methods 134(1)"},
+      "risk": "先分段再滤波会把边界瞬态复制到每个试次，系统性污染 ERP。",
+      "applies_to": ["filter", "pipeline", "epoch"]
+    },
+    {
+      "id": "EEGLAB-FILT-007",
+      "topic": "FILT",
+      "statement": "对同一数据重复施加同一滤波会二次改变幅频特性；EEG.history 中保留了已执行的 pop_ 命令，可用于检查。",
+      "source": {"kind": "doc", "title": "EEGLAB 数据结构", "locator": "EEG.history 字段"},
+      "risk": "重复滤波使有效带宽窄于报告值，方法学描述与实际处理不符。",
+      "applies_to": ["filter", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-FILT-008",
+      "topic": "FILT",
+      "statement": "用于 ICA 的数据通常需要 1 Hz 以下的高通以保留慢伪迹，但过高的高通会削弱眼电与漂移成分，降低分解的可用性。",
+      "source": {"kind": "paper", "title": "Delorme & Makeig (2004), EEGLAB", "locator": "ICA 与预处理建议"},
+      "risk": "为 ICA 过度高通，会让本应被分离的眼电成分混入神经信号。",
+      "applies_to": ["ica", "filter"]
+    },
+    {
+      "id": "EEGLAB-REF-001",
+      "topic": "REF",
+      "statement": "平均参考假设电极覆盖全头且分布相对均匀；通道数很少或缺少后部电极时，平均参考会引入明显的空间失真。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "pop_reref.m"},
+      "risk": "在不满足假设的数据上使用平均参考，会改变地形图分布并影响源定位。",
+      "applies_to": ["reref", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-REF-002",
+      "topic": "REF",
+      "statement": "重参考改变各通道的绝对电位与地形图数值，但不改变通道之间的相对关系；不同参考下的幅值不可直接比较。",
+      "source": {"kind": "paper", "title": "Delorme & Makeig (2004), EEGLAB", "locator": "数据参考与地形图"},
+      "risk": "跨参考比较幅值会得出虚假的组间差异。",
+      "applies_to": ["reref", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-REF-003",
+      "topic": "REF",
+      "statement": "参考方式属于方法学记录的一部分，必须在报告与派生数据的来源信息中明确写出。",
+      "source": {"kind": "paper", "title": "Pernet et al. (2019), EEG-BIDS", "locator": "Scientific Data 6:103"},
+      "risk": "参考缺失使分析无法被他人复算或比较。",
+      "applies_to": ["reref", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-REF-004",
+      "topic": "REF",
+      "statement": "以乳突或耳垂为参考，要求这些电极是独立记录且未被移作他用；参考电极自身的噪声会进入所有通道。",
+      "source": {"kind": "doc", "title": "EEGLAB Tutorial", "locator": "重参考章节"},
+      "risk": "参考电极接触不良时，全部通道同时出现同相位噪声。",
+      "applies_to": ["reref"]
+    },
+    {
+      "id": "EEGLAB-REF-005",
+      "topic": "REF",
+      "statement": "参考应在 ICA 分解之前确定；对已分解的数据改变参考，会使成分地形图与先前结果不可比。",
+      "source": {"kind": "paper", "title": "Delorme & Makeig (2004), EEGLAB", "locator": "ICA 与数据参考的顺序"},
+      "risk": "分解后再改参考，成分编号与地形图失去对应关系。",
+      "applies_to": ["reref", "ica"]
+    },
+    {
+      "id": "EEGLAB-ICA-001",
+      "topic": "ICA",
+      "statement": "ICA 需要远多于通道数的采样点才能稳定估计解混矩阵，常用经验是样本数不少于通道数的 20 至 30 倍。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "pop_runica.m；runica.m"},
+      "risk": "样本不足时分解不收敛或得到随机成分，重复运行结果不一致。",
+      "applies_to": ["ica"]
+    },
+    {
+      "id": "EEGLAB-ICA-002",
+      "topic": "ICA",
+      "statement": "ICA 分离的是统计独立源，不保证每个成分对应单一神经源或单一伪迹源。",
+      "source": {"kind": "paper", "title": "Delorme & Makeig (2004), EEGLAB", "locator": "ICA 的方法学说明"},
+      "risk": "把成分直接等同于解剖或生理单元，会导致过度解释。",
+      "applies_to": ["ica"]
+    },
+    {
+      "id": "EEGLAB-ICA-003",
+      "topic": "ICA",
+      "statement": "成分判读应结合头皮地形图、功率谱与时间序列三项证据，单一指标不足以判定为伪迹。",
+      "source": {"kind": "paper", "title": "Pion-Tonachini et al. (2019), ICLabel", "locator": "NeuroImage 198"},
+      "risk": "仅凭波形或仅凭地形图剔除成分，容易误删神经信号。",
+      "applies_to": ["ica", "plot"]
+    },
+    {
+      "id": "EEGLAB-ICA-004",
+      "topic": "ICA",
+      "statement": "ICA 只负责分解并保存解混矩阵，成分的剔除是研究者的判断，必须依据事先说明的标准并留痕。",
+      "source": {"kind": "doc", "title": "EEGLAB Tutorial", "locator": "ICA 成分剔除章节"},
+      "risk": "自动或随意剔除成分会使结果不可复现，且无法回溯剔除了什么。",
+      "applies_to": ["ica"]
+    },
+    {
+      "id": "EEGLAB-ICA-005",
+      "topic": "ICA",
+      "statement": "在已分段数据上运行 ICA 会把每个试次视为独立观测，破坏时间连续性，不利于伪迹分离。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "pop_runica.m 对连续数据的建议"},
+      "risk": "对分段数据做 ICA 得到的成分往往不可解释。",
+      "applies_to": ["ica"]
+    },
+    {
+      "id": "EEGLAB-ICA-006",
+      "topic": "ICA",
+      "statement": "插值坏导会降低数据的秩；在插值后直接做 ICA 可能得到重复或不可解释的成分，通常需要先做降秩处理。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "pop_runica.m（rank 与 PCA 降维）"},
+      "risk": "秩亏数据上的 ICA 会出现成对镜像成分，稀释解释力。",
+      "applies_to": ["ica"]
+    },
+    {
+      "id": "EEGLAB-ICA-007",
+      "topic": "ICA",
+      "statement": "ICA 结果依赖预处理（滤波、参考、坏段剔除）；不同预处理下得到的成分编号不可直接对应。",
+      "source": {"kind": "paper", "title": "Delorme & Makeig (2004), EEGLAB", "locator": "ICA 的可复现性讨论"},
+      "risk": "跨预处理复用成分编号，会把不同来源的信号当作同一成分。",
+      "applies_to": ["ica"]
+    },
+    {
+      "id": "EEGLAB-ICA-008",
+      "topic": "ICA",
+      "statement": "复现 ICA 结果需要同时保存 icaweights 与 icasphere（以及 icachansind）；只保存权重不足以在新会话中还原成分。",
+      "source": {"kind": "doc", "title": "EEGLAB 数据结构", "locator": "EEG.icaweights / EEG.icasphere"},
+      "risk": "缺失球化矩阵时无法重建成分时间序列，已完成的分解实际上丢失。",
+      "applies_to": ["ica"]
+    },
+    {
+      "id": "EEGLAB-EPOCH-001",
+      "topic": "EPOCH",
+      "statement": "事件标签是采集系统写入的编码，不天然等于实验条件；分段前必须确认标签与条件的对应关系。",
+      "source": {"kind": "doc", "title": "EEGLAB Tutorial", "locator": "事件与分段章节"},
+      "risk": "标签语义弄错时，整份分析的条件对比较完全颠倒。",
+      "applies_to": ["epoch", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-EPOCH-002",
+      "topic": "EPOCH",
+      "statement": "边界（boundary）、阻抗测量、数据排除与分段标记等事件不是刺激触发，不能作为分段依据。",
+      "source": {"kind": "doc", "title": "EEGLAB 数据结构", "locator": "event 类型约定（boundary 等）"},
+      "risk": "以非触发事件分段会产生大量伪试次，且难以察觉。",
+      "applies_to": ["epoch", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-EPOCH-003",
+      "topic": "EPOCH",
+      "statement": "分段窗口必须覆盖目标成分的完整时间进程，且不能超出记录的数据边界。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "pop_epoch.m"},
+      "risk": "窗口过窄会截断成分；窗口越界会导致试次被静默丢弃。",
+      "applies_to": ["epoch", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-EPOCH-004",
+      "topic": "EPOCH",
+      "statement": "基线校正假设刺激前活动与刺激后活动可分离；基线窗应位于刺激前，且长度足够稳定地估计偏移。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "pop_rmbase.m"},
+      "risk": "基线窗过短或跨越刺激会使校正本身引入偏差。",
+      "applies_to": ["baseline", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-EPOCH-005",
+      "topic": "EPOCH",
+      "statement": "试次剔除的幅值或梯度阈值应事先设定并记录，不应依据结果反复调整。",
+      "source": {"kind": "paper", "title": "Pernet et al. (2019), EEG-BIDS", "locator": "预处理记录要求"},
+      "risk": "按结果调阈值等于选择性剔除，使统计推断失效。",
+      "applies_to": ["epoch", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-EPOCH-006",
+      "topic": "EPOCH",
+      "statement": "刺激锁时与反应锁时回答不同的科学问题，二者的分段零点不同，不可混用同一套窗口。",
+      "source": {"kind": "paper", "title": "Pfurtscheller & Lopes da Silva (1999)", "locator": "Clinical Neurophysiology 110(11)"},
+      "risk": "锁时点错误会使成分时间进程整体平移，结论不成立。",
+      "applies_to": ["epoch"]
+    },
+    {
+      "id": "EEGLAB-EPOCH-007",
+      "topic": "EPOCH",
+      "statement": "同一时刻存在多个事件标签时，需要先合并或明确选择；否则会在同一位置产生重复分段。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "pop_epoch.m 对重复事件的处理"},
+      "risk": "重复分段使有效试次数虚高，统计自由度被夸大。",
+      "applies_to": ["epoch", "pipeline"]
+    },
+    {
+      "id": "EEGLAB-ASR-001",
+      "topic": "ASR",
+      "statement": "ASR（Artifact Subspace Reconstruction）由 clean_rawdata 插件提供；未安装该插件时无法执行。",
+      "source": {"kind": "paper", "title": "Bigdely-Shamlo et al. (2015), PREP", "locator": "Frontiers in Neuroinformatics 9:16"},
+      "risk": "把未安装的插件当作可用能力，会让流程在中途失败或静默跳过。",
+      "applies_to": ["asr"]
+    },
+    {
+      "id": "EEGLAB-ASR-002",
+      "topic": "ASR",
+      "statement": "ASR 的 cutoff 参数控制可接受的信号突变程度（常用 20），取值需结合数据质量与采样率调整。",
+      "source": {"kind": "paper", "title": "Bigdely-Shamlo et al. (2015), PREP", "locator": "ASR 参数与默认值"},
+      "risk": "cutoff 过低会大量重建正常数据，过高则去不掉伪迹。",
+      "applies_to": ["asr"]
+    },
+    {
+      "id": "EEGLAB-ASR-003",
+      "topic": "ASR",
+      "statement": "ASR 应作用于连续数据，并在分段之前完成。",
+      "source": {"kind": "paper", "title": "Bigdely-Shamlo et al. (2015), PREP", "locator": "处理顺序"},
+      "risk": "对分段数据做 ASR 会把试次边界当作信号突变。",
+      "applies_to": ["asr"]
+    },
+    {
+      "id": "EEGLAB-ASR-004",
+      "topic": "ASR",
+      "statement": "ASR 会不可逆地重建数据段，必须保留原始记录并记录参数与版本。",
+      "source": {"kind": "paper", "title": "Bigdely-Shamlo et al. (2015), PREP", "locator": "可复现性要求"},
+      "risk": "重建后的数据无法还原，参数缺失时分析不可复算。",
+      "applies_to": ["asr"]
+    },
+    {
+      "id": "EEGLAB-STAT-001",
+      "topic": "STAT",
+      "statement": "未校正的多重比较会显著抬高假阳性率；报告需说明校正方法与比较族的大小。",
+      "source": {"kind": "paper", "title": "Lazic (2010), Pseudoreplication", "locator": "BMC Neuroscience 11:5"},
+      "risk": "逐通道逐时间点检验而不校正，几乎必然得到虚假显著。",
+      "applies_to": ["stats", "export"]
+    },
+    {
+      "id": "EEGLAB-STAT-002",
+      "topic": "STAT",
+      "statement": "以试次为单位做统计而忽略被试随机效应，会产生伪重复（pseudoreplication）。",
+      "source": {"kind": "paper", "title": "Lazic (2010), Pseudoreplication", "locator": "BMC Neuroscience 11:5"},
+      "risk": "把试次当独立样本会夸大自由度，p 值失去意义。",
+      "applies_to": ["stats", "export"]
+    },
+    {
+      "id": "EEGLAB-STAT-003",
+      "topic": "STAT",
+      "statement": "测量窗口应独立于结果确定；依据结果挑选时间窗或通道会引入 double dipping。",
+      "source": {"kind": "paper", "title": "Kriegeskorte et al. (2009), Circular analysis", "locator": "Nature Neuroscience 12(5)"},
+      "risk": "先看结果再选窗，等于在同一数据上选择并检验，效应量被高估。",
+      "applies_to": ["stats", "export"]
+    },
+    {
+      "id": "EEGLAB-STAT-004",
+      "topic": "STAT",
+      "statement": "被试内与被试间设计对应不同的检验与误差项，混合设计还需说明随机效应结构。",
+      "source": {"kind": "paper", "title": "Pernet et al. (2019), EEG-BIDS", "locator": "统计模型描述要求"},
+      "risk": "检验与设计不匹配会使结论无法解释。",
+      "applies_to": ["stats"]
+    },
+    {
+      "id": "EEGLAB-STAT-005",
+      "topic": "STAT",
+      "statement": "样本量小或分布明显偏离正态时，优先使用置换或自助法，并报告效应量而非仅报告 p 值。",
+      "source": {"kind": "paper", "title": "Lazic (2010), Pseudoreplication", "locator": "小样本推断建议"},
+      "risk": "参数检验在小样本上的前提不成立，p 值不可靠。",
+      "applies_to": ["stats"]
+    },
+    {
+      "id": "EEGLAB-STAT-006",
+      "topic": "STAT",
+      "statement": "结果报告应包含检验统计量、自由度、效应量与校正方式，而不只是显著性标记。",
+      "source": {"kind": "paper", "title": "Pernet et al. (2019), EEG-BIDS", "locator": "报告最小字段"},
+      "risk": "只报 p 值无法评估效应大小，也无法复算。",
+      "applies_to": ["stats", "export"]
+    },
+    {
+      "id": "EEGLAB-QC-001",
+      "topic": "QC",
+      "statement": "通道定位覆盖率决定地形图、插值与源定位是否可用；定位缺失时应先补齐再绘图。",
+      "source": {"kind": "doc", "title": "EEGLAB Tutorial", "locator": "通道定位章节"},
+      "risk": "无定位时绘制的地形图只是数值插值，不能解释为头皮分布。",
+      "applies_to": ["qc", "plot", "ica"]
+    },
+    {
+      "id": "EEGLAB-QC-002",
+      "topic": "QC",
+      "statement": "平坦通道（方差近零）通常意味着电极脱落或未连接，应在分析前识别并处理。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "pop_rejchan.m"},
+      "risk": "未处理的平坦通道会污染重参考与 ICA。",
+      "applies_to": ["qc", "reref", "ica"]
+    },
+    {
+      "id": "EEGLAB-QC-003",
+      "topic": "QC",
+      "statement": "工频噪声水平应通过功率谱在目标频率处的峰值检查，而不是凭波形判断。",
+      "source": {"kind": "doc", "title": "EEGLAB Tutorial", "locator": "频谱检查"},
+      "risk": "凭肉眼判断线噪声，常把正常高频活动误认为噪声。",
+      "applies_to": ["qc", "filter"]
+    },
+    {
+      "id": "EEGLAB-QC-004",
+      "topic": "QC",
+      "statement": "数据幅值的合理范围可提示单位错误：EEGLAB 惯例为微伏，若原始数据以伏特存储，数值会小六个数量级。",
+      "source": {"kind": "doc", "title": "EEGLAB 数据结构", "locator": "EEG.data 的单位约定"},
+      "risk": "单位误判使报告的幅值相差百万倍，且不易察觉。",
+      "applies_to": ["qc", "inspect", "filter", "plot"]
+    },
+    {
+      "id": "EEGLAB-QC-005",
+      "topic": "QC",
+      "statement": "质量控制报告应列出未执行的检查项，避免使用者把没有报告的问题当作没有问题。",
+      "source": {"kind": "paper", "title": "Pernet et al. (2019), EEG-BIDS", "locator": "报告完整性"},
+      "risk": "缺失的检查项被默认视为通过，导致过度解读。",
+      "applies_to": ["qc"]
+    },
+    {
+      "id": "EEGLAB-GEN-001",
+      "topic": "GEN",
+      "statement": "原始数据必须只读保留，所有派生数据写入新文件并记录来源。",
+      "source": {"kind": "paper", "title": "Pernet et al. (2019), EEG-BIDS", "locator": "原始数据与派生数据分离"},
+      "risk": "原地覆盖会使错误无法回退，也无法复核。",
+      "applies_to": ["stage", "filter", "reref", "epoch", "baseline", "ica", "asr", "batch"]
+    },
+    {
+      "id": "EEGLAB-GEN-002",
+      "topic": "GEN",
+      "statement": "每个结果都应可追溯到输入文件、完整参数与软件版本。",
+      "source": {"kind": "paper", "title": "Gorgolewski et al. (2016), BIDS", "locator": "Scientific Data 3:160044"},
+      "risk": "缺参数或版本记录时，同一分析无法重放。",
+      "applies_to": ["filter", "reref", "epoch", "baseline", "ica", "erp", "pipeline", "batch", "asr"]
+    },
+    {
+      "id": "EEGLAB-GEN-003",
+      "topic": "GEN",
+      "statement": "同一分析在不同软件或不同版本间可能产生数值差异，比较时应解释差异来源，而不是要求逐点一致。",
+      "source": {"kind": "paper", "title": "Delorme & Makeig (2004), EEGLAB", "locator": "跨工具比较说明"},
+      "risk": "把实现差异误判为错误，或反过来掩盖真正的错误。",
+      "applies_to": ["erp", "psd", "export"]
+    },
+    {
+      "id": "EEGLAB-GEN-004",
+      "topic": "GEN",
+      "statement": "计算成功不等于科学结论成立；结果需结合实验设计、数据质量与统计推断共同判断。",
+      "source": {"kind": "doc", "title": "EEGLAB Tutorial", "locator": "结果解释章节"},
+      "risk": "把脚本跑通当作结论成立，是自动化分析最常见的误用。",
+      "applies_to": ["filter", "reref", "epoch", "baseline", "ica", "erp", "plot", "qc", "pipeline", "batch", "asr", "stats", "export"]
+    }
+  ]
+}

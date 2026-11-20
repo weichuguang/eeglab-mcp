@@ -1,0 +1,117 @@
+{
+  "stage": "filter",
+  "action": "filter",
+  "profiles": [
+    {
+      "id": "M-FILT-ERP-01",
+      "title": "ERP 分析带通 0.1–30 Hz",
+      "intent": "保留 P300 等慢成分，同时抑制高频肌电与线路噪声，是 ERP 研究的通用起点。",
+      "params": {"highpass_hz": 0.1, "lowpass_hz": 30.0, "notch_hz": null},
+      "claims": ["EEGLAB-FILT-001", "EEGLAB-FILT-002", "EEGLAB-FILT-003", "EEGLAB-FILT-004", "EEGLAB-FILT-006", "EEGLAB-FILT-007"],
+      "gates": [
+        {"check": "nyquist_lowpass", "on_fail": "blocked", "claim": "EEGLAB-FILT-003", "message": "低通截止频率低于奈奎斯特频率", "remedy": "降低 lowpass_hz，或确认数据采样率是否被正确读取"},
+        {"check": "highpass_component_risk", "on_fail": "advisory", "claim": "EEGLAB-FILT-002", "message": "高通截止频率与目标成分的慢波保留相容", "remedy": "若关注 P300 等慢成分，避免使用 1 Hz 以上的高通"},
+        {"check": "filter_order_vs_length", "on_fail": "advisory", "claim": "EEGLAB-FILT-004", "message": "滤波器阶数与数据长度相容，边界效应占比可接受", "remedy": "提高采样率无关；可在滤波后裁掉两端各 1 秒"},
+        {"check": "filter_already_applied", "on_fail": "advisory", "claim": "EEGLAB-FILT-007", "message": "数据历史中没有同类滤波记录", "remedy": "确认输入文件是否已滤波，重复滤波会二次改变通带"}
+      ],
+      "executable": true,
+      "notes": "0.1 Hz 高通对应较长滤波器阶数，短记录需检查边界瞬态。"
+    },
+    {
+      "id": "M-FILT-ERP-02",
+      "title": "ERP 分析带通 0.1–40 Hz",
+      "intent": "在保留慢成分的前提下多保留 30–40 Hz 的早期成分，适合关注早期感觉成分的研究。",
+      "params": {"highpass_hz": 0.1, "lowpass_hz": 40.0, "notch_hz": null},
+      "claims": ["EEGLAB-FILT-001", "EEGLAB-FILT-002", "EEGLAB-FILT-003", "EEGLAB-FILT-005"],
+      "gates": [
+        {"check": "nyquist_lowpass", "on_fail": "blocked", "claim": "EEGLAB-FILT-003", "message": "低通截止频率低于奈奎斯特频率", "remedy": "降低 lowpass_hz"},
+        {"check": "line_frequency_match", "on_fail": "advisory", "claim": "EEGLAB-FILT-005", "message": "40 Hz 低通对 50/60 Hz 线噪声有足够衰减", "remedy": "若线噪声仍明显，单独施加陷波"},
+        {"check": "highpass_component_risk", "on_fail": "advisory", "claim": "EEGLAB-FILT-002", "message": "高通截止频率与目标成分的慢波保留相容", "remedy": "避免使用 1 Hz 以上的高通"}
+      ],
+      "executable": true,
+      "notes": "40 Hz 低通在中国大陆常不足以完全抑制 50 Hz 线噪声，必要时叠加陷波。"
+    },
+    {
+      "id": "M-FILT-ERP-03",
+      "title": "ERP 分析带通 1–30 Hz",
+      "intent": "抑制慢漂移、提高波形稳定性，代价是削弱 P300 等慢成分的幅值。",
+      "params": {"highpass_hz": 1.0, "lowpass_hz": 30.0, "notch_hz": null},
+      "claims": ["EEGLAB-FILT-001", "EEGLAB-FILT-002", "EEGLAB-FILT-003", "EEGLAB-FILT-004"],
+      "gates": [
+        {"check": "nyquist_lowpass", "on_fail": "blocked", "claim": "EEGLAB-FILT-003", "message": "低通截止频率低于奈奎斯特频率", "remedy": "降低 lowpass_hz"},
+        {"check": "highpass_component_risk", "on_fail": "advisory", "claim": "EEGLAB-FILT-002", "message": "1 Hz 高通会显著削弱慢成分", "remedy": "若研究目标含 P300 或慢波，改用 0.1 Hz 高通"},
+        {"check": "filter_order_vs_length", "on_fail": "advisory", "claim": "EEGLAB-FILT-004", "message": "滤波器阶数与数据长度相容", "remedy": "滤波后裁掉两端瞬态"}
+      ],
+      "executable": true,
+      "notes": "该配置属于明确的方法学取舍，必须在报告中说明，不能与 0.1 Hz 高通的结果直接比较幅值。"
+    },
+    {
+      "id": "M-FILT-ERP-04",
+      "title": "ERP 分析带通 0.5–20 Hz",
+      "intent": "强抑制高频活动，适合信噪比低、以低频成分为主的数据。",
+      "params": {"highpass_hz": 0.5, "lowpass_hz": 20.0, "notch_hz": null},
+      "claims": ["EEGLAB-FILT-001", "EEGLAB-FILT-002", "EEGLAB-FILT-003"],
+      "gates": [
+        {"check": "nyquist_lowpass", "on_fail": "blocked", "claim": "EEGLAB-FILT-003", "message": "低通截止频率低于奈奎斯特频率", "remedy": "降低 lowpass_hz"},
+        {"check": "highpass_component_risk", "on_fail": "advisory", "claim": "EEGLAB-FILT-002", "message": "0.5 Hz 高通会部分削弱慢成分", "remedy": "关注慢波时改用 0.1 Hz"},
+        {"check": "line_frequency_match", "on_fail": "advisory", "claim": "EEGLAB-FILT-005", "message": "20 Hz 低通已充分抑制线路噪声", "remedy": "无需额外陷波，除非频谱显示残留峰"}
+      ],
+      "executable": true,
+      "notes": "20 Hz 低通会截断 20 Hz 以上的全部活动，不适合研究 beta/gamma 相关成分。"
+    },
+    {
+      "id": "M-FILT-ICA-01",
+      "title": "ICA 输入滤波 1–30 Hz",
+      "intent": "抑制慢漂移与高频噪声，使 ICA 更聚焦于可分离的伪迹与神经成分。",
+      "params": {"highpass_hz": 1.0, "lowpass_hz": 30.0, "notch_hz": null},
+      "claims": ["EEGLAB-FILT-008", "EEGLAB-FILT-001", "EEGLAB-FILT-003", "EEGLAB-ICA-007"],
+      "gates": [
+        {"check": "nyquist_lowpass", "on_fail": "blocked", "claim": "EEGLAB-FILT-003", "message": "低通截止频率低于奈奎斯特频率", "remedy": "降低 lowpass_hz"},
+        {"check": "highpass_component_risk", "on_fail": "advisory", "claim": "EEGLAB-FILT-008", "message": "1 Hz 高通在抑制漂移与保留眼电之间取得平衡", "remedy": "若眼电成分难以分离，可尝试 0.5 Hz 高通", "args": {"min_hz": 0.05, "max_hz": 1.5}},
+        {"check": "processing_stage_order", "on_fail": "advisory", "claim": "EEGLAB-ICA-007", "message": "滤波发生在 ICA 之前", "remedy": "ICA 之后再改变滤波会使已解成分与数据不匹配"}
+      ],
+      "executable": true,
+      "notes": "ICA 的输入滤波需在报告中写明，因为成分编号只在同一预处理下可比。"
+    },
+    {
+      "id": "M-FILT-ICA-02",
+      "title": "ICA 输入滤波 0.1–30 Hz",
+      "intent": "保留慢漂移以供 ICA 将其分离为独立成分，适合漂移严重的记录。",
+      "params": {"highpass_hz": 0.1, "lowpass_hz": 30.0, "notch_hz": null},
+      "claims": ["EEGLAB-FILT-008", "EEGLAB-FILT-004", "EEGLAB-ICA-001"],
+      "gates": [
+        {"check": "nyquist_lowpass", "on_fail": "blocked", "claim": "EEGLAB-FILT-003", "message": "低通截止频率低于奈奎斯特频率", "remedy": "降低 lowpass_hz"},
+        {"check": "filter_order_vs_length", "on_fail": "advisory", "claim": "EEGLAB-FILT-004", "message": "0.1 Hz 高通所需阶数较长，检查记录长度是否足够", "remedy": "记录过短时改用 0.5 或 1 Hz 高通"},
+        {"check": "ica_sample_sufficiency", "on_fail": "advisory", "claim": "EEGLAB-ICA-001", "message": "采样点相对通道数足够支撑 ICA 估计", "remedy": "样本不足时先减少通道或降低采样率"}
+      ],
+      "executable": true,
+      "notes": "0.1 Hz 高通的滤波器阶数很长，在数分钟的数据上也会产生可观的边界瞬态。"
+    },
+    {
+      "id": "M-FILT-LINE-50",
+      "title": "50 Hz 陷波（中国大陆线路频率）",
+      "intent": "仅去除 50 Hz 工频噪声，不改变其余频段。",
+      "params": {"highpass_hz": null, "lowpass_hz": null, "notch_hz": 50.0},
+      "claims": ["EEGLAB-FILT-005", "EEGLAB-FILT-003"],
+      "gates": [
+        {"check": "nyquist_notch", "on_fail": "blocked", "claim": "EEGLAB-FILT-003", "message": "陷波频率低于奈奎斯特频率", "remedy": "确认采样率高于 100 Hz"},
+        {"check": "line_frequency_match", "on_fail": "advisory", "claim": "EEGLAB-FILT-005", "message": "陷波频率与记录地区的线路频率一致", "remedy": "中国大陆为 50 Hz，北美为 60 Hz；用错频率无效"}
+      ],
+      "executable": true,
+      "notes": "陷波不能替代高通滤波；漂移问题仍需单独处理。"
+    },
+    {
+      "id": "M-FILT-SPEC-01",
+      "title": "频谱分析带通 0.5–100 Hz",
+      "intent": "保留宽频活动，供功率谱与频带分析使用，避免低通截断目标频段。",
+      "params": {"highpass_hz": 0.5, "lowpass_hz": 100.0, "notch_hz": null},
+      "claims": ["EEGLAB-FILT-003", "EEGLAB-FILT-005", "EEGLAB-GEN-003"],
+      "gates": [
+        {"check": "nyquist_lowpass", "on_fail": "blocked", "claim": "EEGLAB-FILT-003", "message": "低通截止频率低于奈奎斯特频率", "remedy": "若采样率为 128 Hz，带宽只能到 64 Hz"},
+        {"check": "line_frequency_match", "on_fail": "advisory", "claim": "EEGLAB-FILT-005", "message": "宽频分析中线路噪声需单独处理", "remedy": "频谱分析通常用陷波而非低通"}
+      ],
+      "executable": true,
+      "notes": "低采样率数据无法支持 100 Hz 低通，门控会直接阻断。"
+    }
+  ]
+}

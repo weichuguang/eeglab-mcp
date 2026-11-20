@@ -1,0 +1,62 @@
+{
+  "stage": "stats",
+  "action": "stats",
+  "profiles": [
+    {
+      "id": "M-STAT-TTEST-01",
+      "title": "被试层面配对 t 检验",
+      "intent": "先在每个被试内计算条件差值，再对被试做配对检验，避免把试次当作独立样本。",
+      "params": {"test": "paired_t", "unit": "subject", "correction": "none"},
+      "claims": ["EEGLAB-STAT-002", "EEGLAB-STAT-003", "EEGLAB-STAT-006"],
+      "gates": [
+        {"check": "stats_unit_of_analysis", "on_fail": "blocked", "claim": "EEGLAB-STAT-002", "message": "分析单位为被试而非试次", "remedy": "试次层面的检验会产生伪重复，p 值不可用"},
+        {"check": "stats_window_declared", "on_fail": "blocked", "claim": "EEGLAB-STAT-003", "message": "测量窗口在查看结果之前已声明", "remedy": "依据结果选窗属于循环分析，效应量会被高估"},
+        {"check": "capability_available", "on_fail": "blocked", "claim": "EEGLAB-GEN-004", "message": "统计模块在当前实现中未提供", "remedy": "导出长表后使用外部统计工具，并保留导出参数"}
+      ],
+      "executable": false,
+      "notes": "系统只负责导出可供统计的整洁长表，不在内部实现检验。"
+    },
+    {
+      "id": "M-STAT-RM-ANOVA-01",
+      "title": "重复测量方差分析",
+      "intent": "多水平被试内设计的主效应与交互检验。",
+      "params": {"test": "rm_anova", "unit": "subject", "correction": "none"},
+      "claims": ["EEGLAB-STAT-004", "EEGLAB-STAT-001", "EEGLAB-STAT-006"],
+      "gates": [
+        {"check": "stats_unit_of_analysis", "on_fail": "blocked", "claim": "EEGLAB-STAT-002", "message": "分析单位为被试", "remedy": "混合设计需说明随机效应结构"},
+        {"check": "stats_multiple_comparison", "on_fail": "advisory", "claim": "EEGLAB-STAT-001", "message": "多水平比较需说明校正方式", "remedy": "报告校正方法与比较族大小"},
+        {"check": "capability_available", "on_fail": "blocked", "claim": "EEGLAB-GEN-004", "message": "统计模块未在本系统内实现", "remedy": "使用导出的长表在外部完成"}
+      ],
+      "executable": false,
+      "notes": "球形假设违反时需报告校正后的自由度。"
+    },
+    {
+      "id": "M-STAT-PERM-01",
+      "title": "置换检验",
+      "intent": "不依赖正态假设的组间或条件比较，适合小样本与非正态数据。",
+      "params": {"test": "permutation", "unit": "subject", "n_permutations": 5000, "correction": "none"},
+      "claims": ["EEGLAB-STAT-005", "EEGLAB-STAT-001", "EEGLAB-STAT-006"],
+      "gates": [
+        {"check": "stats_unit_of_analysis", "on_fail": "blocked", "claim": "EEGLAB-STAT-002", "message": "置换单位是被试而非试次", "remedy": "置换试次会破坏被试结构"},
+        {"check": "stats_multiple_comparison", "on_fail": "blocked", "claim": "EEGLAB-STAT-001", "message": "多通道多时间点检验需要族错误率控制", "remedy": "使用簇置换或最大统计量校正"},
+        {"check": "capability_available", "on_fail": "blocked", "claim": "EEGLAB-GEN-004", "message": "置换检验未在本系统内实现", "remedy": "导出长表后在外部完成"}
+      ],
+      "executable": false,
+      "notes": "置换次数需在报告中给出。"
+    },
+    {
+      "id": "M-STAT-CLUSTER-01",
+      "title": "簇置换校正",
+      "intent": "在通道与时间两个维度上控制族错误率，是 EEG 群体统计的常用做法。",
+      "params": {"test": "cluster_permutation", "unit": "subject", "correction": "cluster", "cluster_alpha": 0.05},
+      "claims": ["EEGLAB-STAT-001", "EEGLAB-STAT-003", "EEGLAB-STAT-006"],
+      "gates": [
+        {"check": "stats_multiple_comparison", "on_fail": "blocked", "claim": "EEGLAB-STAT-001", "message": "使用簇层面的族错误率控制", "remedy": "报告簇阈值与置换次数"},
+        {"check": "stats_unit_of_analysis", "on_fail": "blocked", "claim": "EEGLAB-STAT-002", "message": "统计单位为被试", "remedy": "试次层面的簇统计没有推断意义"},
+        {"check": "capability_available", "on_fail": "blocked", "claim": "EEGLAB-GEN-004", "message": "簇置换未在本系统内实现", "remedy": "导出长表后在外部完成"}
+      ],
+      "executable": false,
+      "notes": "簇检验对初始阈值敏感，阈值必须在报告中写明。"
+    }
+  ]
+}
