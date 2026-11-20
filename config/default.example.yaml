@@ -1,0 +1,39 @@
+# EEGLAB-MCP configuration
+# Copy this file to config/default.yaml and edit the three required paths.
+# Relative paths are resolved against this file's directory (config/).
+
+matlab:
+  # MATLAB executable. "matlab" works when it is on PATH; otherwise use an
+  # absolute path, e.g. "C:/Program Files/MATLAB/R2023a/bin/matlab.exe".
+  executable: "matlab"
+  # Per-job timeout (seconds). EEGLAB cold start is typically 25-35 s.
+  timeout_seconds: 900
+  # Directory containing run_job.m (this repository's matlab/ folder).
+  driver_dir: "../matlab"
+  # Keep one MATLAB process alive between calls; falls back to a one-shot
+  # `matlab -batch` process if the worker dies.
+  use_persistent_worker: true
+  worker_idle_seconds: 900
+
+eeglab:
+  # Required: root of your EEGLAB installation.
+  root: "/path/to/eeglab"
+
+paths:
+  # Only files under these roots may be read. Use absolute paths.
+  allowed_input_roots:
+    - "/path/to/eeg_data"
+  # Job directories and output artifacts.
+  output_root: "../outputs"
+  log_root: "../logs"
+
+limits:
+  max_input_mb: 4096
+  max_array_points: 300
+  max_batch_files: 50
+
+science:
+  max_lowpass_ratio: 0.95
+  min_epoch_span_s: 0.01
+  max_epoch_span_s: 120.0
+  min_trials_for_erp: 2
