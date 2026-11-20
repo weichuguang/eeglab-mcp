@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eeglab-mcp"
+version = "1.1.0"
+description = "MCP server for reproducible EEGLAB/MATLAB EEG analysis"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "EEGLAB-MCP contributors" }]
+keywords = ["EEGLAB", "MATLAB", "EEG", "MCP", "Model Context Protocol", "neuroscience", "ERP", "ICA"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+dependencies = [
+    "mcp>=2.3.0,<3",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "build>=1.2"]
+
+[project.urls]
+Homepage = "https://github.com/weichuguang/eeglab-mcp"
+Repository = "https://github.com/weichuguang/eeglab-mcp"
+Issues = "https://github.com/weichuguang/eeglab-mcp/issues"
+
+[project.scripts]
+eeglab-mcp = "eeglab_mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+eeglab_mcp = ["data/*.json", "data/methods/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: exercises a real MATLAB/EEGLAB process (slow, ~40 s per call)",
+    "e2e: full end-to-end run against the EEGLAB sample dataset",
+]
