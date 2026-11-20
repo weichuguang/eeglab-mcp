@@ -39,7 +39,7 @@ def build_server() -> MCPServer:
     srv = MCPServer(
         name="eeglab-mcp",
         title="EEGLAB-MCP — Professional EEG analysis over MCP",
-        version="1.1.0",
+        version="1.2.0",
         instructions=INSTRUCTIONS,
     )
 
@@ -320,6 +320,36 @@ def build_server() -> MCPServer:
         return api.compute_erp(file_path, channel)
 
     @srv.tool()
+    def eeglab_compute_psd(
+        file_path: str,
+        fmax_hz: float | None = None,
+        fmin_hz: float | None = None,
+        method: str | None = None,
+        override_gate: bool = False,
+        override_reason: str = "",
+    ) -> dict:
+        """Estimate a Welch power spectrum, per-channel spectra and band powers.
+
+        Returns the channel-mean spectrum, per-channel CSV (`psd_channels.csv`)
+        and delta/theta/alpha/beta/gamma band power in uV^2.  This is a
+        time-averaged spectrum, not a time-frequency analysis: use MNE-MCP
+        (`mne_tfr_morlet`) for ERSP/ITC.
+
+        Args:
+            file_path: Absolute path to a .set file.
+            fmax_hz: Upper frequency in Hz; defaults to min(45, Nyquist-1) and
+                must stay below 90% of Nyquist.
+            fmin_hz: Lower frequency in Hz (default 0).
+            method: Optional method profile id from `eeglab_method_catalog`.
+            override_gate: Proceed despite blocked gate checks (requires a reason).
+            override_reason: Why proceeding is acceptable; recorded in the job.
+        """
+        return api.compute_psd(
+            file_path, fmax_hz, fmin_hz, method=method,
+            override_gate=override_gate, override_reason=override_reason,
+        )
+
+    @srv.tool()
     def eeglab_plot_results(
         file_path: str,
         kind: str = "erp_waveform",
@@ -332,7 +362,8 @@ def build_server() -> MCPServer:
 
         Args:
             file_path: Absolute path to a .set file.
-            kind: 'erp_waveform', 'topomap' or 'psd'.
+            kind: 'erp_waveform', 'topomap' or 'psd' ('psd' is legacy; prefer
+                eeglab_compute_psd, which also returns numeric band powers).
             time_s: Time point in seconds for the topomap.
             method: Optional method profile id, e.g. 'M-PLOT-TOPO-01'.
             override_gate: Proceed despite blocked gate checks (requires a reason).
@@ -358,7 +389,7 @@ def build_server() -> MCPServer:
 
         Args:
             stage: Optional filter, e.g. 'filter', 'reref', 'ica', 'epoch',
-                'baseline', 'asr', 'qc', 'stats', 'export', 'plot'.
+                'baseline', 'asr', 'qc', 'stats', 'export', 'plot', 'psd'.
         """
         return api.method_catalog(stage)
 
@@ -389,7 +420,8 @@ def build_server() -> MCPServer:
 
         Args:
             file_path: Absolute path to a .set file.
-            action: Gated action: filter, reref, epoch, baseline, ica, plot, export_long.
+            action: Gated action: filter, reref, epoch, baseline, ica, plot,
+                export_long, psd.
             params: Parameters for that action, e.g. {"highpass_hz": 0.1, "lowpass_hz": 30}.
             method: Optional method profile id.
             override_gate: Evaluate the override path (requires a reason).

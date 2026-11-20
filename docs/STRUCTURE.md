@@ -37,7 +37,7 @@ current code, not what it is intended to become.
 | Path | Description |
 | --- | --- |
 | `README.md` | Documentation index. |
-| `METHODOLOGY.md` | Knowledge base and gate engine: 47 claims, 39 method profiles, blocking/override policy. |
+| `METHODOLOGY.md` | Knowledge base and gate engine: 49 claims, 41 method profiles, blocking/override policy. |
 | `INTEROP.md` | Hand-off contract with MNE-MCP and Pingouin-MCP: long-table schema, unit conventions, provenance fields. |
 | `STRUCTURE.md` | This file inventory. |
 
@@ -49,6 +49,7 @@ current code, not what it is intended to become.
 | `matlab_worker.m` | Persistent worker loop: waits for request files, executes `run_job`, writes response files, exits after an idle timeout. |
 | `ica_decompose.m` | Calls `runica` directly and writes `icaweights`, `icasphere`, `icachansind` and `icawinv`, avoiding EEGLAB 13's GUI-bound `pop_runica` path on modern MATLAB. |
 | `detect_units.m` | Infers whether `EEG.data` is in volts or microvolts and returns the scale factor and unit label used in the result metadata. |
+| `compute_psd_metrics.m` | Converts `spectopo` dB spectra to µV²/Hz, integrates standard band power and flags line-noise peaks. |
 | `tests/make_synthetic_eeg.m` | Builds a synthetic EEG structure with a known embedded ERP, used by the native tests. |
 | `tests/mcp_check.m` | Small assertion helper that records `name`, `passed` and `detail` for the MATLAB test runner. |
 | `tests/run_all_tests.m` | Runs the MATLAB test suites, prints a summary and writes a JSON result file. Requires `EEGLAB_ROOT`. |
@@ -56,6 +57,7 @@ current code, not what it is intended to become.
 | `tests/test_plugin_presence.m` | Checks optional plugin availability (for example BIOSIG for EDF/BDF import). |
 | `tests/test_sample_dataset.m` | Loads the EEGLAB sample dataset and verifies channel count, sampling rate, events, epoching and ERP. |
 | `tests/test_synthetic_erp.m` | Known-answer test: recovers the embedded ERP from synthetic data. |
+| `tests/test_spectral.m` | Known-answer checks for dB semantics, band integration, unit scaling, `fmax` cropping and line-noise detection. |
 | `tests/test_unit_detection.m` | Verifies volt/microvolt inference, including the fallback for ambiguous amplitudes. |
 
 ## `scripts/`
@@ -73,7 +75,7 @@ current code, not what it is intended to become.
 | Path | Description |
 | --- | --- |
 | `__init__.py` | Package docstring and `__version__`. |
-| `server.py` | MCP server entry point (`mcp.server.mcpserver.MCPServer`) and the 20 tool definitions with their descriptions. |
+| `server.py` | MCP server entry point (`mcp.server.mcpserver.MCPServer`) and the 21 tool definitions with their descriptions. |
 | `tools.py` | Tool implementations: input validation, gate invocation, MATLAB delegation and envelope construction. |
 | `adapter.py` | One-shot `matlab -batch` adapter: builds the job file, runs MATLAB, parses the result and enforces timeouts. |
 | `worker.py` | Client for the persistent MATLAB worker, including fallback to the one-shot adapter when the worker dies or times out. |
@@ -87,7 +89,7 @@ current code, not what it is intended to become.
 
 | Path | Description |
 | --- | --- |
-| `claims.json` | 47 curated claims with topic, statement, risk, source locator and applicable actions. |
+| `claims.json` | 49 curated claims with topic, statement, risk, source locator and applicable actions. |
 | `methods/asr.json` | Method profiles for automatic subspace reconstruction / artifact handling. |
 | `methods/baseline.json` | Baseline-correction profiles. |
 | `methods/epoch.json` | Epoching profiles (event selection, window limits). |
@@ -95,6 +97,7 @@ current code, not what it is intended to become.
 | `methods/filter.json` | Filtering profiles (high-pass, low-pass, notch, Nyquist limits). |
 | `methods/ica.json` | ICA profiles (algorithm, rank, component handling). |
 | `methods/plot.json` | Plotting profiles (ERP waveform, topography, PSD). |
+| `methods/psd.json` | Power-spectrum profiles (Welch spectrum, band power, Nyquist and record-length gates). |
 | `methods/qc.json` | Quality-control profiles. |
 | `methods/reref.json` | Re-referencing profiles. |
 | `methods/stats.json` | Statistical-summary profiles. |

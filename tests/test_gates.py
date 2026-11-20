@@ -55,9 +55,9 @@ def statuses(result) -> dict[str, str]:
 
 
 # --------------------------------------------------------------------- catalog
-def test_catalog_has_47_claims_and_39_profiles():
-    assert len(CATALOG.claims) == 47
-    assert len(CATALOG.profiles) == 39
+def test_catalog_has_49_claims_and_41_profiles():
+    assert len(CATALOG.claims) == 49
+    assert len(CATALOG.profiles) == 41
     assert CATALOG.claims["EEGLAB-FILT-001"].topic == "FILT"
 
 
@@ -108,6 +108,57 @@ def test_unknown_parameters_fall_back_to_an_adhoc_profile():
     assert matched is False
     assert prof.id == "M-ADHOC-FILTER"
     assert prof.gates  # the action's checks still apply
+
+
+def test_psd_defaults_match_the_general_profile():
+    prof, matched = resolve_profile("psd", {}, CATALOG)
+    assert matched and prof.id == "M-SPEC-PSD-01"
+
+
+def test_psd_40hz_matches_the_40hz_profile():
+    prof, matched = resolve_profile("psd", {"fmax_hz": 40.0}, CATALOG)
+    assert matched and prof.id == "M-SPEC-PSD-40-01"
+
+
+def test_psd_is_a_gated_action():
+    from eeglab_mcp.tools import GATED_ACTIONS
+
+    assert GATED_ACTIONS.get("psd") == "psd"
+
+
+def test_psd_fmax_above_nyquist_is_blocked():
+    result = evaluate("psd", {"fmax_hz": 100.0}, facts(srate=128.0))
+    assert result.status == BLOCKED
+    assert statuses(result)["fmax_below_nyquist"] == BLOCKED
+    assert any(c["id"] == "EEGLAB-FILT-003" for c in result.claims)
+
+
+def test_psd_fmax_in_the_transition_band_is_blocked():
+    # 128 Hz data: 90% of Nyquist is 57.6 Hz.
+    result = evaluate("psd", {"fmax_hz": 60.0}, facts(srate=128.0))
+    assert result.status == BLOCKED
+    assert statuses(result)["fmax_below_nyquist"] == BLOCKED
+
+
+def test_psd_short_record_is_only_advisory():
+    result = evaluate("psd", {}, facts(duration_s=2.0))
+    assert result.status == ADVISORY
+    assert statuses(result)["psd_record_length_sufficient"] == ADVISORY
+
+
+def test_psd_on_short_epochs_is_only_advisory():
+    result = evaluate(
+        "psd", {},
+        facts(is_continuous=False, is_epoched=True, trials=80, pnts=128, duration_s=1.0),
+    )
+    assert result.status == ADVISORY
+
+
+def test_psd_unknown_parameters_still_get_the_blocking_check():
+    prof, matched = resolve_profile("psd", {"fmin_hz": 1.0, "fmax_hz": 45.0}, CATALOG)
+    assert matched is False and prof.id == "M-ADHOC-PSD"
+    result = evaluate("psd", {"fmin_hz": 1.0, "fmax_hz": 100.0}, facts(srate=128.0))
+    assert result.status == BLOCKED
 
 
 def test_unknown_method_id_raises():

@@ -24,7 +24,7 @@ end
 addpath(genpath(fullfile(root, 'functions')));
 
 suites = {'test_core_functions', 'test_synthetic_erp', 'test_unit_detection', ...
-          'test_plugin_presence', 'test_sample_dataset'};
+          'test_plugin_presence', 'test_sample_dataset', 'test_spectral'};
 
 results = struct('name', {}, 'passed', {}, 'detail', {});
 fprintf('\nEEGLAB-MCP MATLAB native tests (EEGLAB root: %s)\n', root);

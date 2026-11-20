@@ -1,5 +1,5 @@
 {
-  "catalog_version": "2026.10",
+  "catalog_version": "2026.11",
   "schema_version": 1,
   "eeglab_baseline": "13.0.0b",
   "note": "每条依据均为对 EEGLAB/SCCN 文档与相关方法学文献的释义（paraphrase），并注明来源文档与定位；不逐字引用原文。依据本身不是结论，只是门控判断的锚点。",
@@ -357,6 +357,22 @@
       "source": {"kind": "paper", "title": "Pernet et al. (2019), EEG-BIDS", "locator": "报告完整性"},
       "risk": "缺失的检查项被默认视为通过，导致过度解读。",
       "applies_to": ["qc"]
+    },
+    {
+      "id": "EEGLAB-QC-006",
+      "topic": "QC",
+      "statement": "功率谱的频率分辨率由记录时长与 Welch 窗长共同决定：全记录 FFT 的分辨率约为 1/T，记录过短时低频成分不可分辨，参与平均的段数也不足。",
+      "source": {"kind": "paper", "title": "Welch (1967), Use of the FFT for power spectra", "locator": "IEEE Trans. Audio Electroacoustics AU-15(2)"},
+      "risk": "在不声明频率分辨率的情况下讨论 delta/theta 功率，可能把泄漏或单段噪声当成频段活动。",
+      "applies_to": ["psd", "qc"]
+    },
+    {
+      "id": "EEGLAB-QC-007",
+      "topic": "QC",
+      "statement": "功率谱结果必须声明估计方法（如 Welch 的窗长、重叠与分段）、dB 的相对含义（10*log10 功率谱密度）以及频段功率的绝对单位，否则数值无法与其他实现比较。",
+      "source": {"kind": "doc", "title": "EEGLAB 帮助文本", "locator": "spectopo.m：输出为 dB 功率谱，窗长与重叠由 pwelch 决定"},
+      "risk": "dB 是相对量；把 dB 与 µV² 混报，或隐去窗长，会使跨软件数值差异无法解释。",
+      "applies_to": ["psd"]
     },
     {
       "id": "EEGLAB-GEN-001",

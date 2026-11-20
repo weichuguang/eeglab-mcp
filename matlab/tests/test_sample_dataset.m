@@ -38,6 +38,13 @@ try
     results(end + 1) = mcp_check('sample:psd_finite', ...
         all(isfinite(spectra(:))) && numel(freqs) == size(spectra, 2), ...
         sprintf('频谱 %s，频点 %d 个', mat2str(size(spectra)), numel(freqs)));
+
+    [u_scale, ~] = detect_units(EEG);
+    M = compute_psd_metrics(spectra, freqs(:), u_scale);
+    positive = M.band.included & M.band.mean_uv2 > 0;
+    results(end + 1) = mcp_check('sample:psd_bands', ...
+        all(positive == M.band.included) && nnz(M.band.included) == 5, ...
+        sprintf('频段功率 %s uV^2', mat2str(round(M.band.mean_uv2, 2))));
 catch ME
     results(end + 1) = mcp_check('sample:load', false, ME.message);
 end

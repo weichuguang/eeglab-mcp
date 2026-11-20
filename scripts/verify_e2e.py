@@ -59,6 +59,7 @@ def main() -> int:
     if staged:
         plot = step("eeglab_plot_results(erp_waveform)", lambda: T.plot_results(staged, "erp_waveform"))
     qc = step("eeglab_qc_report", lambda: T.qc_report(SAMPLE))
+    psd = step("eeglab_compute_psd", lambda: T.compute_psd(SAMPLE))
 
     # ---------------------------------------------------------------- report
     d_status = status.get("result", {}) if status else {}
@@ -66,6 +67,7 @@ def main() -> int:
     d_pipe = pipe.get("result", {}) if pipe else {}
     d_erp = erp.get("result", {}) if erp else {}
     d_qc = qc.get("result", {}) if qc else {}
+    d_psd = psd.get("result", {}) if psd else {}
 
     lines = [
         "# EEGLAB-MCP 验证报告",
@@ -134,12 +136,34 @@ def main() -> int:
         lines += [f"- {x}" for x in d_qc.get("not_checked", [])]
         lines.append("")
 
+    if d_psd:
+        bands = d_psd.get("bands", {})
+        lines += [
+            "## 六、频域（PSD）",
+            "",
+            f"- 频段：{d_psd.get('fmin_hz')} — {d_psd.get('fmax_hz')} Hz，"
+            f"Δf = {d_psd.get('df_hz')} Hz",
+            f"- 返回频点数：{len(d_psd.get('freqs_hz', []))}（CSV 保留全分辨率）",
+            f"- 单位：`{d_psd.get('input_unit_assumed')}`（换算比例 {d_psd.get('unit_scale_to_uv')}）",
+            f"- dB 基准：`{d_psd.get('db_reference')}`",
+            "",
+            "| 频段 | 范围 (Hz) | 通道平均功率 (µV²) |",
+            "| --- | --- | --- |",
+        ]
+        for i, name in enumerate(bands.get("name", [])):
+            lines.append(
+                f"| {name} | {bands['f_lo_hz'][i]}–{bands['f_hi_hz'][i]} | "
+                f"{bands['mean_uv2'][i]:.2f} |"
+            )
+        ln = d_psd.get("line_noise_f0_hz") or []
+        lines += ["", f"- 工频候选：{', '.join(f'{x:g} Hz' for x in ln) if ln else '未检测到'}", ""]
+
     artifacts = []
     for r in results:
         for a in (r["raw"].get("artifacts") or []):
             artifacts.append(a)
     if artifacts:
-        lines += ["## 六、产物与校验值", "", "| 文件 | 类型 | 字节 | SHA-256（前 16 位） |", "| --- | --- | --- | --- |"]
+        lines += ["## 七、产物与校验值", "", "| 文件 | 类型 | 字节 | SHA-256（前 16 位） |", "| --- | --- | --- | --- |"]
         for a in artifacts:
             sha = (a.get("sha256") or "")[:16]
             lines.append(f"| `{Path(a['path']).name}` | {a.get('kind')} | {a.get('bytes')} | `{sha}` |")
@@ -149,13 +173,13 @@ def main() -> int:
     for r in results:
         for w in (r["raw"].get("warnings") or []):
             warns.append(f"- [{r['title']}] {w}")
-    lines += ["## 七、警告（真实返回，未过滤）", ""] + (warns or ["- 无"]) + [""]
+    lines += ["## 八、警告（真实返回，未过滤）", ""] + (warns or ["- 无"]) + [""]
 
     # ------------------------------------------------- method gates
     gated = [(r["title"], r["raw"]["gate"]) for r in results if r["raw"].get("gate")]
     if gated:
         lines += [
-            "## 八、方法学门控",
+            "## 九、方法学门控",
             "",
             f"- 知识库版本：`{gated[0][1].get('catalog_version')}`",
             "",
@@ -170,7 +194,7 @@ def main() -> int:
             )
         lines.append("")
     else:
-        lines += ["## 八、方法学门控", "", "- 本次运行的步骤均未经过门控。", ""]
+        lines += ["## 九、方法学门控", "", "- 本次运行的步骤均未经过门控。", ""]
 
     blk = [(r["title"], r["raw"]["gate"]) for r in results
            if (r["raw"].get("gate") or {}).get("status") == "blocked"]
@@ -187,7 +211,7 @@ def main() -> int:
     if mt.is_file():
         data = json.loads(mt.read_text(encoding="utf-8"))
         lines += [
-            "## 九、MATLAB 原生测试",
+            "## 十、MATLAB 原生测试",
             "",
             f"- 生成时间：{data.get('finished_utc')}",
             f"- EEGLAB 根目录：`{data.get('eeglab_root')}`",
@@ -202,7 +226,7 @@ def main() -> int:
         lines.append("")
     else:
         lines += [
-            "## 九、MATLAB 原生测试",
+            "## 十、MATLAB 原生测试",
             "",
             "- 未找到 `outputs/matlab_tests.json`；先运行 `python scripts/run_matlab_tests.py`。",
             "",

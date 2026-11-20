@@ -487,6 +487,36 @@ def _waveform_labeling(c: _Ctx) -> tuple[bool, str]:
     return False, "图上成分标注是否与数据峰位一致无法由系统核验"
 
 
+def _fmax_below_nyquist(c: _Ctx) -> tuple[bool, str]:
+    fmax = c.num("fmax_hz")
+    if fmax is None:
+        return True, "未设置频率上限（由 spectopo 按奈奎斯特自动裁剪）"
+    nyq = c.facts.srate / 2.0
+    if nyq <= 0:
+        return False, "采样率未知，无法判断奈奎斯特频率"
+    if fmax >= nyq:
+        return False, f"频率上限 {fmax:g} Hz ≥ 奈奎斯特 {nyq:g} Hz"
+    if fmax > 0.9 * nyq:
+        return False, (
+            f"频率上限 {fmax:g} Hz 已超过奈奎斯特的 90%（{0.9 * nyq:g} Hz），"
+            "过渡带过窄"
+        )
+    return True, f"频率上限 {fmax:g} Hz < 奈奎斯特 {nyq:g} Hz"
+
+
+def _psd_record_length_sufficient(c: _Ctx) -> tuple[bool, str]:
+    need = float(c.arg("min_s", 10.0))
+    if c.facts.is_epoched:
+        d = (c.facts.pnts or 0) / (c.facts.srate or 1.0)
+        label = "单试次"
+    else:
+        d = c.facts.duration_s
+        label = "记录"
+    if d <= 0:
+        return True, f"记录时长未知（建议 ≥ {need:g} s）"
+    return d >= need, f"{label} {d:.1f} s，Δf≈1/T={1.0 / d:.3f} Hz，建议 ≥ {need:g} s"
+
+
 CHECKS: dict[str, Check] = {
     "nyquist_lowpass": _nyquist_lowpass,
     "nyquist_notch": _nyquist_notch,
@@ -527,6 +557,8 @@ CHECKS: dict[str, Check] = {
     "export_metadata_complete": _export_metadata_complete,
     "window_independent_of_result": _window_independent_of_result,
     "waveform_labeling": _waveform_labeling,
+    "fmax_below_nyquist": _fmax_below_nyquist,
+    "psd_record_length_sufficient": _psd_record_length_sufficient,
 }
 
 
